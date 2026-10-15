@@ -1,0 +1,11 @@
+{
+ "threshold": 0.3,
+ "unsure": {
+  "photos": 149,
+  "right": 0.4966
+ },
+ "sure": {
+  "photos": 1055,
+  "right": 0.9536
+ }
+}

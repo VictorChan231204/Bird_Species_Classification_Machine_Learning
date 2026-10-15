@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="Identify 200 bird species from a photo. Two CNNs, ResNet-50 and ConvNeXt-Tiny, run in your browser." />
+    <title>Bird Species Classification</title>
+  </head>
+  <body>
+    <!--
+      THESIS: The photo hangs alone in a dark room under one light, and the model's answer is its wall label.
+        Refuses the two-column demo app: dropzone left, result card right, tabs below.
+      OWN-WORLD: Matte black wall, a soft pool of warm light, one off-white printed label card in Libre Franklin.
+        Two type sizes only; rank from weight, case and hairline rules. Hairlines are the only chart form: bars and learning curves.
+      STORY: The marker sees a real bird identified on arrival, tries another in one click, reads how it works, then opens
+        the experiments 1 to 8 that led to 89.7%, each with its runs, settings and learning curve.
+      FIRST VIEWPORT: Photo centre-left in the light, about 60% of the height. Label card to its right: species,
+        confidence, top 5, each network's vote. "Choose a photo" under the label. Eight example photos along the bottom.
+      FORM: Gallery Wall, candidate 7 of 7, seed a402a4cd (re-roll 1).
+      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md,
+        and every shipping raster carrying its provenance
+    -->
+    <header class="masthead">
+      <p class="masthead-title">Bird Species Classification</p>
+      <p class="masthead-meta">Victor Chan · 104384986 · COS30082</p>
+    </header>
+
+    <main>
+      <!-- The room: one photo under the light, its label beside it, the examples along the bottom edge. -->
+      <section class="room" id="room" aria-label="Identify a bird">
+        <figure class="artwork">
+          <div class="light" aria-hidden="true"></div>
+          <img id="photo" alt="" hidden /><!-- main.ts sets the photo and shows it -->
+          <figcaption class="visually-hidden" id="photo-caption"></figcaption>
+        </figure>
+
+        <div class="label-column">
+          <article class="label" id="label" aria-live="polite">
+            <h1 class="label-species" id="label-species">Loading the networks</h1>
+            <p class="label-confidence" id="label-confidence"></p>
+
+            <div class="label-progress" id="label-progress">
+              <div class="bar"><span id="progress-fill" style="transform:scaleX(0)"></span></div>
+              <p id="progress-text">Starting the download</p>
+            </div>
+
+            <ol class="top5" id="top5" aria-label="Five most likely species"></ol>
+
+            <!-- Each network's vote: its top species, then that species' probability. -->
+            <dl class="votes" id="votes" hidden>
+              <div>
+                <dt>ResNet-50</dt>
+                <dd id="vote-resnet">Waiting</dd>
+                <dd class="vote-value" id="vote-resnet-value"></dd>
+              </div>
+              <div>
+                <dt>ConvNeXt-Tiny</dt>
+                <dd id="vote-convnext">Waiting</dd>
+                <dd class="vote-value" id="vote-convnext-value"></dd>
+              </div>
+            </dl>
+
+            <!-- The credit line at the foot of the label: where the photo came from, the test set's answer, any caution. -->
+            <div class="label-foot">
+              <p class="label-source" id="label-source">Example photo</p>
+              <p class="label-truth" id="label-truth" hidden></p>
+              <p class="label-note" id="label-note" hidden></p>
+            </div>
+          </article>
+        </div>
+
+        <!-- Everything that can hang on the wall, in one strip: your own photo, or one of the examples. -->
+        <div class="strip">
+          <div class="actions">
+            <label class="button">
+              <input type="file" id="file-input" accept="image/*" class="visually-hidden" />
+              Choose a photo
+            </label>
+            <p class="actions-hint">or drop or paste one anywhere. It knows 200 North American species.</p>
+          </div>
+          <nav class="examples" aria-label="Example photos">
+            <p class="examples-caption">Or try a test photo, drawn at random</p>
+            <ul id="examples"></ul>
+          </nav>
+        </div>
+      </section>
+
+      <!-- How the answer is made: four steps, then the scores. -->
+      <section class="decides" aria-labelledby="decides-title">
+        <h2 class="section-title" id="decides-title">How it works</h2>
+        <ol class="steps">
+          <li>
+            <h3>Crop</h3>
+            <p>The photo's short side is resized to 512 pixels, and the middle 448 × 448 square is kept. Training scored its test photos the same way.</p>
+          </li>
+          <li>
+            <h3>Two networks</h3>
+            <p>ResNet-50 and ConvNeXt-Tiny, both CNNs pretrained on ImageNet and fine-tuned on 4,829 bird photos, each give a probability for all 200 species.</p>
+          </li>
+          <li>
+            <h3>Average</h3>
+            <p>The two probability lists are averaged with equal weight. The most likely species after averaging is the answer.</p>
+          </li>
+          <li>
+            <h3>In your browser</h3>
+            <p>Both networks run in this browser with onnxruntime-web, on the graphics card when it can.</p>
+          </li>
+        </ol>
+        <p class="decides-score" id="final-score"></p>
+      </section>
+
+      <!-- The experiments: one table row per experiment; the selected one opens below (experiments.ts). -->
+      <section class="experiments" aria-labelledby="experiments-title">
+        <h2 class="section-title" id="experiments-title">The experiments</h2>
+        <p class="experiments-intro" id="experiments-intro"></p>
+        <div id="experiments"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Victor Chan · 104384986 · COS30082 Assignment 1, Bird Species Classification</p>
+      <p>Dataset: Caltech-UCSD Birds 200 (CUB-200). Networks: PyTorch, exported to ONNX.</p>
+    </footer>
+
+    <div class="drop-veil" id="drop-veil" hidden><p>Drop the photo to hang it</p></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
