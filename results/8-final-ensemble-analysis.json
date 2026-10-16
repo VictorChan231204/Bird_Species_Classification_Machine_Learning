@@ -1,0 +1,268 @@
+{
+  "run": "8-final-ensemble",
+  "test_top1": 0.897,
+  "test_top3": 0.9693,
+  "test_top5": 0.9826,
+  "mistakes": 124,
+  "mistakes_within_same_group": 64,
+  "species_all_right": 121,
+  "top_pairs": [
+    {
+      "a": "Chuck will Widow",
+      "b": "Whip poor Will",
+      "mistakes": 4
+    },
+    {
+      "a": "American Crow",
+      "b": "Fish Crow",
+      "mistakes": 3
+    },
+    {
+      "a": "Brewer Blackbird",
+      "b": "Boat tailed Grackle",
+      "mistakes": 3
+    },
+    {
+      "a": "Herring Gull",
+      "b": "Ring billed Gull",
+      "mistakes": 3
+    },
+    {
+      "a": "Brandt Cormorant",
+      "b": "Fish Crow",
+      "mistakes": 2
+    },
+    {
+      "a": "Acadian Flycatcher",
+      "b": "Least Flycatcher",
+      "mistakes": 2
+    },
+    {
+      "a": "Loggerhead Shrike",
+      "b": "Great Grey Shrike",
+      "mistakes": 2
+    },
+    {
+      "a": "Brewer Sparrow",
+      "b": "Clay colored Sparrow",
+      "mistakes": 2
+    },
+    {
+      "a": "Artic Tern",
+      "b": "Caspian Tern",
+      "mistakes": 2
+    },
+    {
+      "a": "Common Tern",
+      "b": "Least Tern",
+      "mistakes": 2
+    },
+    {
+      "a": "Artic Tern",
+      "b": "Common Tern",
+      "mistakes": 2
+    },
+    {
+      "a": "Orange crowned Warbler",
+      "b": "Wilson Warbler",
+      "mistakes": 2
+    },
+    {
+      "a": "Parakeet Auklet",
+      "b": "Pelagic Cormorant",
+      "mistakes": 1
+    },
+    {
+      "a": "Brewer Blackbird",
+      "b": "Shiny Cowbird",
+      "mistakes": 1
+    },
+    {
+      "a": "Red winged Blackbird",
+      "b": "Brandt Cormorant",
+      "mistakes": 1
+    }
+  ],
+  "pair_photos": [
+    {
+      "file": "0619.jpg",
+      "true": "Whip poor Will",
+      "guess": "Chuck will Widow",
+      "probability": 0.651,
+      "pair_mistakes": 4
+    },
+    {
+      "file": "0166.jpg",
+      "true": "Fish Crow",
+      "guess": "American Crow",
+      "probability": 0.613,
+      "pair_mistakes": 3
+    },
+    {
+      "file": "0288.jpg",
+      "true": "Boat tailed Grackle",
+      "guess": "Brewer Blackbird",
+      "probability": 0.526,
+      "pair_mistakes": 3
+    },
+    {
+      "file": "0368.jpg",
+      "true": "Ring billed Gull",
+      "guess": "Herring Gull",
+      "probability": 0.677,
+      "pair_mistakes": 3
+    }
+  ],
+  "hardest_species": [
+    {
+      "species": "Whip poor Will",
+      "accuracy": 0.25
+    },
+    {
+      "species": "Boat tailed Grackle",
+      "accuracy": 0.286
+    },
+    {
+      "species": "Tennessee Warbler",
+      "accuracy": 0.333
+    },
+    {
+      "species": "American Crow",
+      "accuracy": 0.4
+    },
+    {
+      "species": "Ring billed Gull",
+      "accuracy": 0.4
+    },
+    {
+      "species": "Elegant Tern",
+      "accuracy": 0.4
+    },
+    {
+      "species": "Common Tern",
+      "accuracy": 0.429
+    },
+    {
+      "species": "Red eyed Vireo",
+      "accuracy": 0.429
+    },
+    {
+      "species": "Chuck will Widow",
+      "accuracy": 0.5
+    },
+    {
+      "species": "Henslow Sparrow",
+      "accuracy": 0.571
+    }
+  ],
+  "examples": [
+    {
+      "file": "0254.jpg",
+      "true": "Frigatebird",
+      "top3": [
+        [
+          "Frigatebird",
+          0.965
+        ],
+        [
+          "Sooty Albatross",
+          0.003
+        ],
+        [
+          "Brandt Cormorant",
+          0.003
+        ]
+      ]
+    },
+    {
+      "file": "0054.jpg",
+      "true": "Red winged Blackbird",
+      "top3": [
+        [
+          "Red winged Blackbird",
+          0.77
+        ],
+        [
+          "American Redstart",
+          0.024
+        ],
+        [
+          "Rose breasted Grosbeak",
+          0.014
+        ]
+      ]
+    },
+    {
+      "file": "0616.jpg",
+      "true": "American Pipit",
+      "top3": [
+        [
+          "American Pipit",
+          0.883
+        ],
+        [
+          "Brewer Sparrow",
+          0.011
+        ],
+        [
+          "Western Wood Pewee",
+          0.005
+        ]
+      ]
+    },
+    {
+      "file": "0197.jpg",
+      "true": "Purple Finch",
+      "top3": [
+        [
+          "American Goldfinch",
+          0.922
+        ],
+        [
+          "Pine Warbler",
+          0.005
+        ],
+        [
+          "Pine Grosbeak",
+          0.005
+        ]
+      ]
+    },
+    {
+      "file": "0273.jpg",
+      "true": "American Goldfinch",
+      "top3": [
+        [
+          "Indigo Bunting",
+          0.889
+        ],
+        [
+          "American Goldfinch",
+          0.025
+        ],
+        [
+          "Lazuli Bunting",
+          0.004
+        ]
+      ]
+    },
+    {
+      "file": "0976.jpg",
+      "true": "Cape May Warbler",
+      "top3": [
+        [
+          "Tennessee Warbler",
+          0.85
+        ],
+        [
+          "Northern Waterthrush",
+          0.019
+        ],
+        [
+          "Palm Warbler",
+          0.011
+        ]
+      ]
+    }
+  ]
+}

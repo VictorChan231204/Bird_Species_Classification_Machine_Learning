@@ -195,7 +195,7 @@ for _kernel in ("linear", "rbf"):  # straight fence and bendy fence (W4 s23-34);
 # Results (seed 42 val / test): 1-random-start 15.6 / 15.9 (epoch-2 training loss 5.27 < 5.3, so no fallback run);
 # 1-frozen-new-layer 61.9 / 59.5; 1-frozen-new-layer-plain 59.6 / 57.9; 1-frozen-svm-linear 62.3 / 60.7 (C=0.1);
 # 1-frozen-svm-rbf 60.0 / 59.8 (C=100). Pretraining adds about 70 points, fine-tuning about 25; the three deciders on
-# frozen features sit within the 2.5-point noise floor of each other.
+# frozen features sit within 2.7 points of each other, about the 2.5-point noise floor, on one seed: a tie.
 
 
 # Experiment 7 (flip and ensemble), planned 2026-10-15. No training: each combination averages the saved
