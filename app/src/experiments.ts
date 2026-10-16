@@ -266,9 +266,9 @@ const EXPERIMENTS: Experiment[] = [
     runs: [
       { run: "5-combined", label: "ResNet-50 alone", role: "comparison" },
       { run: "6-convnext-lr3e-03", label: "ConvNeXt-Tiny alone", role: "comparison" },
-      { run: "7-ensemble", label: "Both, averaged", role: "kept" },
+      { run: "7-ensemble", label: "Ensemble", role: "kept" },
       { run: "7-flip", label: "ResNet-50 + mirror image", role: "dropped" },
-      { run: "7-ensemble-flip", label: "Both + mirror image", role: "dropped" },
+      { run: "7-ensemble-flip", label: "Ensemble + mirror image", role: "dropped" },
     ],
   },
   {
@@ -287,13 +287,16 @@ const EXPERIMENTS: Experiment[] = [
     runs: [
       { run: "8-final-resnet50", label: "ResNet-50", role: "member" },
       { run: "8-final-convnext", label: "ConvNeXt-Tiny", role: "member" },
-      { run: "8-final-ensemble", label: "Both, averaged (this site)", role: "kept" },
+      { run: "8-final-ensemble", label: "Ensemble (this site)", role: "kept" },
     ],
   },
 ];
 
-/** Final scores of the model on this site, for the "How it works" section. */
+/** Test scores of the final model on this site (the Ensemble), for the "Member models" table and the model card. */
 export const FINAL = RUNS["8-final-ensemble"];
+
+/** Test scores of each member network on its own, keyed by the network names classifier.ts uses. */
+export const MEMBERS = { "ResNet-50": RUNS["8-final-resnet50"], "ConvNeXt-Tiny": RUNS["8-final-convnext"] };
 
 export const INTRO =
   `Eight experiments, each asking one question. Validation photos: 800 of the 4,829 training photos, held back to ` +

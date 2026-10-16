@@ -1,42 +1,69 @@
 /*
- * Gallery Wall: a dark room, one photo under a pool of light, one printed label card.
- * Two type sizes only (--text and --display); rank comes from weight, case and hairline rules.
- * Hairlines are the only chart form: bars on the label, learning curves in the experiments.
+ * A light field-guide page: warm off-white background, white panels with borders and soft shadows, near-black text,
+ * and one forest-green accent for buttons, tags, selected rows and probability bars.
+ * Every panel's content sits in one centred column, at most --page wide (see --gutter).
  */
 
 :root {
-  --wall: #0b0b0a; /* matte black wall */
-  --ink-on-wall: #ece8df; /* text on the wall */
-  --muted-on-wall: #9a968c; /* secondary text on the wall, 6.8:1 on --wall */
-  --rule-on-wall: #2c2b28; /* hairlines on the wall */
-  --card: #f4f1ea; /* the printed label card */
-  --ink: #171614; /* text on the card */
-  --muted-on-card: #5c584f; /* secondary text on the card, 6.4:1 on --card */
-  --rule-on-card: #d5cfc2; /* hairlines on the card */
-  --light: rgba(255, 238, 208, 0.19); /* the warm pool of light on the wall */
+  --bg: #f6f5f0; /* page background, warm off-white */
+  --surface: #ffffff; /* panels */
+  --surface-2: #eef1ea; /* photo stage, table headers, quiet boxes */
+  --border: #dcdfd6;
+  --border-strong: #b9bfb2;
+  --text: #1c1f1a; /* body text, 16:1 on white */
+  --muted: #545a50; /* secondary text, 7:1 on white */
+  --accent: #2f6b3a; /* forest green: buttons, bars, tags, 6.4:1 on white */
+  --accent-hover: #245530;
+  --accent-soft: #e3eee2; /* tag and selected-row fill */
+  --on-accent: #ffffff; /* text on green fills */
+  --row-hover: #f4f6f1; /* table row under the pointer */
+  --line-quiet: #8a8f85; /* the training curve, dashed */
+  --bar-track: #e6e9e1;
+  --bar-other: #8fae92; /* bars for the top-5 rows after the first */
+  --good: #2f6b3a;
+  --good-soft: #e3eee2;
+  --bad: #a3392b;
+  --bad-soft: #f8e5e1;
+  --warn: #6b4e00;
+  --warn-soft: #fbf1d8;
+  --warn-border: #e7cf8f;
 
-  --text: 1rem;
-  --display: clamp(2rem, 1.45rem + 1.9vw, 2.75rem);
-  --leading: 1.55;
+  --radius: 12px;
+  --radius-small: 8px;
+  --shadow: 0 1px 2px rgba(28, 31, 26, 0.06), 0 4px 16px rgba(28, 31, 26, 0.06);
+
+  --text-xs: 0.8125rem; /* run keys, seed notes */
+  --text-sm: 0.875rem; /* notes, table headers, tags */
+  --text-lg: 1.125rem; /* panel titles */
+  --text-xl: 1.25rem; /* the selected experiment's title */
+
+  --page: 1240px;
+  /* Side padding that keeps content inside --page on wide screens and 1.25rem from the edge on phones. */
+  --gutter: max(1.25rem, calc((100% - var(--page)) / 2));
 
   --space-1: 0.375rem;
   --space-2: 0.75rem;
   --space-3: 1.25rem;
   --space-4: 2rem;
-  --space-5: 3.5rem;
-  --space-6: 6rem;
+  --space-5: 3rem;
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
-  color-scheme: dark;
+  color-scheme: light;
   font-family: "Libre Franklin Variable", system-ui, sans-serif;
-  font-size: var(--text);
-  line-height: var(--leading);
-  color: var(--ink-on-wall);
-  background: var(--wall);
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--bg);
   font-variant-numeric: tabular-nums; /* figures line up in every score column */
   -webkit-font-smoothing: antialiased;
-  scrollbar-color: var(--rule-on-wall) var(--wall);
+  caret-color: var(--accent);
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 *,
@@ -49,15 +76,10 @@ body {
   margin: 0;
 }
 
-/* The pool of light spills past the screen edge on phones; clip it so the page never scrolls sideways.
-   On main, not body: body's overflow passes to the whole window, where it would still allow scrolling. */
-main {
-  overflow-x: clip;
-}
-
 h1,
 h2,
 h3,
+h4,
 p,
 ol,
 ul,
@@ -73,18 +95,9 @@ ul {
   list-style: none;
 }
 
-::selection {
-  background: var(--ink-on-wall);
-  color: var(--wall);
-}
-
 :focus-visible {
-  outline: 2px solid var(--ink-on-wall);
-  outline-offset: 3px;
-}
-
-.label :focus-visible {
-  outline-color: var(--ink);
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .visually-hidden {
@@ -96,235 +109,97 @@ ul {
   white-space: nowrap;
 }
 
-/* ---------- Masthead ---------- */
+/* ---------- Header band: title, byline, task tags ---------- */
 
-.masthead {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) clamp(var(--space-3), 4vw, var(--space-5));
-  border-bottom: 1px solid var(--rule-on-wall);
-}
-
-.masthead-title {
-  font-weight: 650;
-}
-
-.masthead-meta {
-  color: var(--muted-on-wall);
-}
-
-/* ---------- The room ---------- */
-
-.room {
-  position: relative;
-  isolation: isolate;
+.hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(19rem, 25rem);
-  grid-template-rows: 1fr auto;
-  column-gap: clamp(var(--space-4), 5vw, var(--space-6));
-  align-items: center;
-  min-height: calc(100svh - 4.2rem); /* the room fills the screen under the masthead */
-  padding: var(--space-3) clamp(var(--space-3), 6vw, 7rem);
+  gap: var(--space-1);
+  padding: var(--space-4) var(--gutter) var(--space-3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
+.hero-title {
+  font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem);
+  font-weight: 750;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.hero-byline {
+  color: var(--muted);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.tags li {
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* ---------- The demo: photo and choices (left), answer and member networks (right) ---------- */
+
+.demo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 27rem);
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-4) var(--gutter);
+}
+
+/* Shared panel look: white, bordered, rounded, softly lifted off the page. */
+.input,
+.label,
+.members,
+.card-section,
+.experiments {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.input {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+.output {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* A fixed-height stage, so the choices below never jump when a photo of another shape appears. */
 .artwork {
-  position: relative;
-  justify-self: center;
   display: flex;
   justify-content: center;
-  width: 100%;
+  align-items: center;
+  --stage: 50svh; /* the stage's height; the photo's width below is worked out from it */
+  height: var(--stage);
+  padding: var(--space-2);
+  border-radius: var(--radius-small);
+  background: var(--surface-2);
 }
 
-/* The pool of light falls on the wall around the photo, a little above its centre, as from a ceiling spot. */
-.light {
-  position: absolute;
-  z-index: -1;
-  inset: -45% -30% -25%;
-  background: radial-gradient(ellipse 50% 50% at 50% 46%, var(--light), transparent 70%);
-  pointer-events: none;
-}
-
-/*
- * Sized from the photo's shape (--ratio = width / height, set by main.ts): as tall as 66% of the screen, unless
- * that makes it wider than its column. Small dataset photos are scaled up to this size instead of sitting tiny.
- */
+/* Sized from the photo's shape (--ratio = width / height, set by main.ts), as large as the stage allows. */
 .artwork img {
   display: block;
-  width: min(100%, calc(66svh * var(--ratio, 0.75)));
+  width: min(100%, calc((var(--stage) - 2 * var(--space-2)) * var(--ratio, 0.75)));
   height: auto;
   aspect-ratio: var(--ratio, 0.75);
-  /* Hung off the wall: a soft drop shadow below, no frame. */
-  box-shadow: 0 1.5rem 3.5rem rgba(0, 0, 0, 0.7), 0 0.25rem 0.75rem rgba(0, 0, 0, 0.5);
-}
-
-.label-column {
-  display: grid;
-  gap: var(--space-4);
-  align-self: center;
-}
-
-/* ---------- The label card ---------- */
-
-.label {
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-3) 1.75rem 1.5rem;
-  background: var(--card);
-  color: var(--ink);
-  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.45);
-}
-
-.label ::selection {
-  background: var(--ink);
-  color: var(--card);
-}
-
-.label-species {
-  font-size: var(--display);
-  font-weight: 700;
-  line-height: 1.04;
-  letter-spacing: -0.025em;
-  text-wrap: balance;
-  margin-top: -0.125rem;
-}
-
-.label-confidence {
-  color: var(--muted-on-card);
-  margin-top: -0.375rem;
-}
-
-/* Hairline bars: used for the download progress and the top 5. */
-.bar {
-  display: block;
-  height: 2px;
-  background: var(--rule-on-card);
-}
-
-/* The filled part is full width, shrunk by scaleX(value) from the left edge: cheap to animate, no re-layout. */
-.bar > span {
-  display: block;
-  height: 100%;
-  background: var(--ink);
-  transform-origin: left;
-  transition: transform 600ms var(--ease-out);
-}
-
-.label-progress {
-  display: grid;
-  gap: var(--space-1);
-  color: var(--muted-on-card);
-}
-
-.label-progress[hidden] {
-  display: none;
-}
-
-.top5 {
-  display: grid;
-  gap: 0.6rem;
-  padding-top: var(--space-2);
-  margin-top: var(--space-1);
-  border-top: 1px solid var(--rule-on-card);
-}
-
-.top5:empty {
-  display: none;
-}
-
-.top5 li {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  column-gap: var(--space-2);
-  row-gap: 0.2rem;
-}
-
-.top5 li .bar {
-  grid-column: 1 / -1;
-}
-
-.top5 li:not(.is-top) .bar > span {
-  background: var(--muted-on-card);
-}
-
-.top5 .is-top {
-  font-weight: 650;
-}
-
-.top5-value {
-  color: var(--muted-on-card);
-}
-
-.top5 .is-top .top5-value {
-  color: var(--ink);
-}
-
-/*
- * Each network's vote on one line, as three columns shared by both rows: network, species, probability.
- * The rows' <div>s step aside (display: contents) so both votes line up on one grid. Network names keep their own
- * case: uppercase would turn "ConvNeXt" into "CONVNEXT" and widen it onto two lines.
- */
-.votes {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) auto;
-  gap: var(--space-1) var(--space-2);
-  padding-top: var(--space-2);
-  margin-top: var(--space-1);
-  border-top: 1px solid var(--rule-on-card);
-}
-
-.votes[hidden] {
-  display: none;
-}
-
-.votes > div {
-  display: contents;
-}
-
-.votes dt {
-  font-weight: 650;
-  color: var(--muted-on-card);
-}
-
-.vote-value {
-  text-align: right;
-}
-
-/* The credit line at the foot of the card: the photo's source, then the test set's answer and any caution. */
-.label-foot {
-  display: grid;
-  gap: var(--space-1);
-  padding-top: var(--space-2);
-  margin-top: var(--space-1);
-  border-top: 1px solid var(--rule-on-card);
-  color: var(--muted-on-card);
-}
-
-.label-foot [hidden] {
-  display: none;
-}
-
-/* An upload with a confident answer has no line to show: drop the rule and spacing too. */
-.label-foot:not(:has(> :not([hidden]))) {
-  display: none;
-}
-
-.label-truth {
-  font-weight: 500;
-  color: var(--ink);
-}
-
-/* ---------- The strip along the bottom of the room: your photo or an example ---------- */
-
-.strip {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: space-between;
-  align-items: end;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--rule-on-wall); /* the skirting line the examples hang above */
+  border-radius: var(--radius-small);
+  box-shadow: 0 2px 10px rgba(28, 31, 26, 0.18);
 }
 
 .actions {
@@ -336,48 +211,48 @@ ul {
 .button {
   flex: none;
   display: inline-block;
-  padding: 0.7rem 1.25rem;
-  border: 1px solid var(--ink-on-wall);
-  color: var(--ink-on-wall);
-  font-weight: 600;
+  padding: 0.7rem 1.4rem;
+  border-radius: var(--radius-small);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 650;
   cursor: pointer;
-  transition: background-color 200ms var(--ease-out), color 200ms var(--ease-out);
+  transition: background-color 150ms var(--ease-out);
 }
 
 .button:hover {
-  background: var(--ink-on-wall);
-  color: var(--wall);
+  background: var(--accent-hover);
 }
 
 .button:focus-within {
-  outline: 2px solid var(--ink-on-wall);
-  outline-offset: 3px;
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .actions-hint {
-  color: var(--muted-on-wall);
-  max-width: 28ch; /* three lines, and narrow enough that all eight examples fit at 1440 px */
+  color: var(--muted);
+  max-width: 42ch;
 }
 
 .examples {
-  display: flex;
-  align-items: end;
-  gap: var(--space-2);
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
 }
 
 .examples-caption {
-  color: var(--muted-on-wall);
-  max-width: 10rem;
-  text-align: right;
-  padding-bottom: 0.2rem;
-  flex: none;
+  font-weight: 600;
 }
 
+/* The padding keeps room for the selected thumbnail's ring; the negative margin cancels it on the left. */
 .examples ul {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.6rem;
   overflow-x: auto;
-  padding: 0.35rem 0.35rem 0.5rem;
+  padding: 0.25rem;
+  margin-left: -0.25rem;
   scrollbar-width: thin;
 }
 
@@ -385,83 +260,337 @@ ul {
   display: block;
   padding: 0;
   border: 0;
+  border-radius: var(--radius-small);
   background: none;
   cursor: pointer;
-  opacity: 0.55;
-  transition: opacity 250ms var(--ease-out), transform 250ms var(--ease-out);
+  transition: transform 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
 }
 
-/* 4rem squares: all eight fit beside the button at 1440 px wide, with no sideways scroll. */
+/* 4rem squares: all eight fit under the photo at 1440 px wide. */
 .example img {
   display: block;
   height: 4rem;
   width: 4rem;
   object-fit: cover;
+  border-radius: var(--radius-small);
 }
 
 .example:hover {
-  opacity: 0.9;
   transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(28, 31, 26, 0.15);
 }
 
 .example[aria-current="true"] {
-  opacity: 1;
-  box-shadow: 0 0 0 1px var(--wall), 0 0 0 2px var(--ink-on-wall);
+  box-shadow: 0 0 0 3px var(--accent);
 }
 
-/* ---------- Reading sections on the wall ---------- */
+/* ---------- The Ensemble's answer card ---------- */
 
-.decides,
-.experiments {
-  padding: var(--space-6) clamp(var(--space-3), 6vw, 7rem);
-  border-top: 1px solid var(--rule-on-wall);
-}
-
-.section-title {
-  font-size: var(--display);
-  font-weight: 700;
-  line-height: 1.04;
-  letter-spacing: -0.025em;
-  margin-bottom: var(--space-5);
-}
-
-.steps {
+.label {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-4);
+  gap: var(--space-2);
+  padding: var(--space-3);
 }
 
-.steps li {
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--ink-on-wall);
+.label-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
 }
 
-.steps h3 {
-  font-size: var(--text);
+.label-title {
+  font-size: var(--text-lg);
+  font-weight: 750;
+}
+
+.label-what {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+/* The Ensemble's test score as a badge beside its name: this number belongs to the Ensemble. */
+.label-score {
+  flex: none;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-small);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.label-species {
+  font-size: clamp(1.6rem, 1.3rem + 1vw, 2.1rem);
+  font-weight: 750;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+  margin-top: var(--space-1);
+}
+
+.label-confidence {
+  color: var(--muted);
+}
+
+/* Bars: used for the download progress and the top 5. */
+.bar {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bar-track);
+  overflow: hidden;
+}
+
+/* The filled part is full width, shrunk by scaleX(value) from the left edge: cheap to animate, no re-layout. */
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  transition: transform 600ms var(--ease-out);
+}
+
+.label-progress {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--muted);
+}
+
+.label-progress[hidden] {
+  display: none;
+}
+
+.top5 {
+  display: grid;
+  gap: 0.7rem;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.top5:empty {
+  display: none;
+}
+
+.top5 li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: var(--space-2);
+  row-gap: 0.25rem;
+}
+
+.top5 li .bar {
+  grid-column: 1 / -1;
+}
+
+.top5 li:not(.is-top) .bar > span {
+  background: var(--bar-other);
+}
+
+.top5 .is-top {
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: var(--space-2);
 }
 
-.steps p,
-.experiments-intro {
-  color: var(--muted-on-wall);
-  max-width: 65ch;
+.top5-value {
+  color: var(--muted);
 }
 
-.decides-score {
-  margin-top: var(--space-5);
-  max-width: 60ch;
+.top5 .is-top .top5-value {
+  color: var(--text);
+}
+
+/* The foot of the card: where the photo came from, the test set's verdict, any caution. */
+.label-foot {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.label-foot [hidden] {
+  display: none;
+}
+
+/* An upload with a confident answer has no line to show: drop the rule and spacing too. */
+.label-foot:not(:has(> :not([hidden]))) {
+  display: none;
+}
+
+/* Verdict as a coloured box, with the words saying it too (colour is never the only signal). */
+.label-truth,
+.label-note {
+  padding: 0.45rem 0.7rem;
+  border-radius: var(--radius-small);
+  font-weight: 600;
+}
+
+.label-truth[data-verdict="correct"] {
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+.label-truth[data-verdict="wrong"] {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.label-note {
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-border);
+  color: var(--warn);
   font-weight: 500;
 }
 
-/* ---------- The experiments: a table of experiments, the selected one's detail below ---------- */
+/* ---------- Member models: each network's vote for this photo and its own test score ---------- */
 
-.experiments-intro {
-  margin-bottom: var(--space-4);
+.members {
+  padding: var(--space-3);
 }
 
+.members-title {
+  font-size: var(--text-lg);
+  font-weight: 750;
+  margin-bottom: var(--space-2);
+}
+
+.members-table tbody th {
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+/* The Ensemble's row closes both score tables, tinted green: it is the sum of the rows above. */
+.members-table tr.is-ensemble > *,
+.metrics-table tr.is-ensemble > * {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.vote-value {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.is-ensemble .vote-value {
+  color: inherit;
+}
+
+.members-note,
+.metrics-note {
+  margin-top: var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+/* ---------- Reading sections: model card and experiments ---------- */
+
+.card-section,
+.experiments {
+  margin: 0 var(--gutter) var(--space-4);
+  padding: var(--space-4);
+}
+
+.section-title {
+  font-size: clamp(1.5rem, 1.25rem + 0.8vw, 1.875rem);
+  font-weight: 750;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  margin-bottom: var(--space-3);
+}
+
+/*
+ * The model card: five parts in two columns, each opened by a rule. Grid areas balance the columns: the long
+ * details sit beside the two short parts, then the metrics beside the limitations.
+ */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "details data"
+    "details use"
+    "metrics limits";
+  gap: var(--space-4) var(--space-5);
+  align-items: start;
+}
+
+.card-part {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 2px solid var(--text);
+}
+
+.card-details {
+  grid-area: details;
+}
+
+.card-data {
+  grid-area: data;
+}
+
+.card-use {
+  grid-area: use;
+}
+
+.card-metrics {
+  grid-area: metrics;
+}
+
+.card-limits {
+  grid-area: limits;
+}
+
+.card-part h3 {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.card-part p,
+.limits li,
+.facts dd,
+.experiments-intro {
+  max-width: 70ch;
+}
+
+/* Details as label / value rows. */
+.facts > div {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.facts > div:last-child {
+  border-bottom: 0;
+}
+
+.facts dt {
+  font-weight: 650;
+}
+
+.limits {
+  display: grid;
+  gap: var(--space-1);
+  padding-left: 1.2rem;
+  list-style: disc;
+}
+
+.limits li::marker {
+  color: var(--accent);
+}
+
+/* ---------- Tables: header on a tinted band, rows on hairlines, numbers right-aligned ---------- */
+
+.members-table,
+.metrics-table,
 .exp-table,
 .runs-table,
 .settings-table {
@@ -469,58 +598,90 @@ ul {
   border-collapse: collapse;
 }
 
+.members-table th,
+.members-table td,
+.metrics-table th,
+.metrics-table td,
 .exp-table th,
 .exp-table td,
 .runs-table th,
 .runs-table td,
 .settings-table th,
 .settings-table td {
-  padding: var(--space-2) var(--space-2) var(--space-2) 0;
-  border-bottom: 1px solid var(--rule-on-wall);
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border);
   text-align: left;
   vertical-align: top;
 }
 
+.members-table thead th,
+.metrics-table thead th,
 .exp-table thead th,
 .runs-table thead th {
-  color: var(--muted-on-wall);
-  font-weight: 500;
-  border-bottom-color: var(--ink-on-wall);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-bottom-color: var(--border-strong);
 }
 
+.members-table,
+.metrics-table {
+  font-size: var(--text-sm);
+}
+
+.members-table th,
+.members-table td {
+  padding-inline: 0.5rem;
+}
+
+.metrics-table tbody th {
+  font-weight: 500;
+}
+
+.members-table .num,
+.metrics-table .num,
 .exp-table .num,
 .runs-table .num {
   text-align: right;
   white-space: nowrap;
 }
 
+/* ---------- The experiments: a table of experiments, the selected one's detail below ---------- */
+
+.experiments-intro {
+  color: var(--muted);
+  margin-bottom: var(--space-3);
+}
+
 .exp-number {
   width: 2.5rem;
-  color: var(--muted-on-wall);
+  color: var(--muted);
 }
 
 .exp-change {
-  color: var(--muted-on-wall);
+  color: var(--muted);
 }
 
 /* Every selectable row: the whole row is the target; its button carries the name and the keyboard focus. */
 tr[data-experiment],
 tr[data-run] {
   cursor: pointer;
-  transition: background-color 150ms var(--ease-out);
+  transition: background-color 120ms var(--ease-out);
 }
 
 tr[data-experiment]:hover,
 tr[data-run]:hover {
-  background: rgba(236, 232, 223, 0.04);
+  background: var(--row-hover);
 }
 
 tr[aria-selected="true"] {
-  background: rgba(236, 232, 223, 0.08);
+  background: var(--accent-soft);
 }
 
-tr[aria-selected="true"] .exp-number {
-  color: var(--ink-on-wall);
+tr[aria-selected="true"] .exp-number,
+tr[aria-selected="true"] .row-button {
+  color: var(--accent);
   font-weight: 700;
 }
 
@@ -537,14 +698,15 @@ tr[aria-selected="true"] .exp-number {
 
 .table-note {
   margin-top: var(--space-2);
-  color: var(--muted-on-wall);
+  color: var(--muted);
+  font-size: var(--text-sm);
 }
 
 .seeds,
 .run-key {
   display: block;
-  color: var(--muted-on-wall);
-  font-size: 0.8125rem;
+  color: var(--muted);
+  font-size: var(--text-xs);
   font-weight: 400;
 }
 
@@ -552,30 +714,35 @@ tr[aria-selected="true"] .exp-number {
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 
-/* The selected experiment, opened under the table. */
+/* The selected experiment, opened under the table after a strong rule. */
 .exp-detail {
   margin-top: var(--space-5);
   padding-top: var(--space-4);
-  border-top: 1px solid var(--ink-on-wall);
+  border-top: 2px solid var(--text);
 }
 
 .detail-title {
-  font-size: var(--text);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: var(--space-4);
+  font-size: var(--text-xl);
+  font-weight: 750;
+  margin-bottom: var(--space-3);
 }
 
 .detail-number {
-  color: var(--muted-on-wall);
+  display: inline-grid;
+  place-items: center;
+  min-width: 2rem;
+  height: 2rem;
   margin-right: var(--space-2);
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-sm);
 }
 
 .detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--space-5);
+  gap: var(--space-4);
   align-items: start;
 }
 
@@ -590,13 +757,13 @@ tr[aria-selected="true"] .exp-number {
 }
 
 .story-list dd {
-  color: var(--muted-on-wall);
+  color: var(--muted);
   max-width: 62ch;
 }
 
 .detail-heading {
   margin: var(--space-4) 0 var(--space-2);
-  font-size: var(--text);
+  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -609,16 +776,14 @@ tr[aria-selected="true"] .exp-number {
   margin-left: var(--space-1);
 }
 
-.runs-table tr.is-kept td:first-child .row-button {
-  text-decoration: underline;
-  text-underline-offset: 0.25em;
-  text-decoration-thickness: 1px;
+.runs-table tr.is-kept .row-button {
+  color: var(--accent);
 }
 
 .settings-table th {
   width: 9.5rem;
   font-weight: 500;
-  color: var(--muted-on-wall);
+  color: var(--muted);
 }
 
 .setting-value {
@@ -628,10 +793,11 @@ tr[aria-selected="true"] .exp-number {
 
 .setting-note {
   display: block;
-  color: var(--muted-on-wall);
+  color: var(--muted);
+  font-size: var(--text-sm);
 }
 
-/* The learning curve: hairlines only, like every other chart on the page. */
+/* The learning curve: validation in green, training dashed grey. */
 .curve {
   display: block;
   width: 100%;
@@ -639,32 +805,32 @@ tr[aria-selected="true"] .exp-number {
 }
 
 .curve .grid {
-  stroke: var(--rule-on-wall);
+  stroke: var(--border);
   stroke-width: 1;
 }
 
 .curve .tick {
-  fill: var(--muted-on-wall);
+  fill: var(--muted);
   font-size: 11px;
 }
 
 .curve polyline {
   fill: none;
-  stroke-width: 1.5;
+  stroke-width: 2;
   stroke-linejoin: round;
 }
 
 .curve .val {
-  stroke: var(--ink-on-wall);
+  stroke: var(--accent);
 }
 
 .curve .train {
-  stroke: var(--muted-on-wall);
-  stroke-dasharray: 4 3;
+  stroke: var(--line-quiet);
+  stroke-dasharray: 5 4;
 }
 
 .curve .kept {
-  fill: var(--ink-on-wall);
+  fill: var(--accent);
 }
 
 .curve-legend {
@@ -673,24 +839,26 @@ tr[aria-selected="true"] .exp-number {
   align-items: center;
   gap: var(--space-1) var(--space-2);
   margin-top: var(--space-1);
-  color: var(--muted-on-wall);
+  color: var(--muted);
+  font-size: var(--text-sm);
 }
 
 .key {
   display: inline-block;
   width: 1.5rem;
-  border-top: 1.5px solid var(--ink-on-wall);
+  border-top: 2px solid var(--accent);
 }
 
 .key-train {
   margin-left: var(--space-2);
-  border-top: 1.5px dashed var(--muted-on-wall);
+  border-top: 2px dashed var(--line-quiet);
 }
 
 .curve-note,
 .curve-empty {
   margin-top: var(--space-2);
-  color: var(--muted-on-wall);
+  color: var(--muted);
+  font-size: var(--text-sm);
 }
 
 /* ---------- Footer and drop veil ---------- */
@@ -698,9 +866,9 @@ tr[aria-selected="true"] .exp-number {
 .footer {
   display: grid;
   gap: var(--space-1);
-  padding: var(--space-4) clamp(var(--space-3), 6vw, 7rem) var(--space-5);
-  border-top: 1px solid var(--rule-on-wall);
-  color: var(--muted-on-wall);
+  padding: var(--space-3) var(--gutter) var(--space-4);
+  color: var(--muted);
+  font-size: var(--text-sm);
 }
 
 .drop-veil {
@@ -709,9 +877,10 @@ tr[aria-selected="true"] .exp-number {
   z-index: 10;
   display: grid;
   place-items: center;
-  background: rgba(11, 11, 10, 0.88);
-  border: 1px solid var(--ink-on-wall);
-  font-weight: 650;
+  background: rgba(47, 107, 58, 0.88);
+  color: var(--on-accent);
+  font-size: var(--text-xl);
+  font-weight: 700;
   pointer-events: none;
 }
 
@@ -719,35 +888,23 @@ tr[aria-selected="true"] .exp-number {
   display: none;
 }
 
-/* ---------- Narrow screens: photo above the label, examples scroll sideways ---------- */
+/* Laptops and tablets: the runs table needs the full width, so the selected run's curve and settings go below it. */
+@media (max-width: 1100px) {
+  .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- Narrow screens: one column (photo, choices, answer, member networks) ---------- */
 
 @media (max-width: 860px) {
-  .masthead {
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .room {
+  .demo {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
-    row-gap: var(--space-4);
-    min-height: 0;
-    padding-top: var(--space-4);
+    padding-top: var(--space-3);
   }
 
-  .light {
-    inset: -5% -10% 40% -10%;
-  }
-
-  .artwork img {
-    width: min(100%, calc(48svh * var(--ratio, 0.75)));
-  }
-
-  .strip {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-4);
-    margin-top: 0;
+  .artwork {
+    --stage: 42svh;
   }
 
   .actions {
@@ -756,35 +913,18 @@ tr[aria-selected="true"] .exp-number {
     gap: var(--space-2);
   }
 
-  .examples {
-    flex-direction: column;
-    align-items: start;
-    gap: var(--space-1);
-    min-width: 0;
-  }
-
-  .examples-caption {
-    max-width: none;
-    text-align: left;
-  }
-
-  .examples ul {
-    max-width: 100%;
-  }
-
-  .steps {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .decides,
+  .card-section,
   .experiments {
-    padding-block: var(--space-5);
+    padding: var(--space-3);
   }
 
-  /* One column: story and runs first, then the selected run's settings and curve. */
+  .card-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "details" "data" "metrics" "use" "limits";
+  }
+
   .detail-grid {
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-4);
   }
 
   /* Tables keep their numbers; the long text columns go. */
@@ -798,19 +938,37 @@ tr[aria-selected="true"] .exp-number {
   }
 }
 
-/* Phones: too narrow for three vote columns, so each network's name sits on its own line above its vote. */
+/* Phones: tighter panels and cells; the details' labels sit above their values. */
 @media (max-width: 480px) {
-  .votes {
-    grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: 0;
+  .input,
+  .label,
+  .members {
+    padding: var(--space-2);
   }
 
-  .votes dt {
-    grid-column: 1 / -1;
+  .card-section,
+  .experiments {
+    padding: var(--space-2);
   }
 
-  .votes > div + div dt {
-    margin-top: var(--space-1);
+  .members-table .vote-value {
+    display: block;
+  }
+
+  .members-table th,
+  .members-table td,
+  .metrics-table th,
+  .metrics-table td,
+  .runs-table th,
+  .runs-table td,
+  .exp-table th,
+  .exp-table td {
+    padding-inline: 0.4rem;
+  }
+
+  .facts > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
   }
 
   /* The runs table must fit 4 columns: run keys stay in the panel heading, headers may wrap. */
@@ -823,12 +981,7 @@ tr[aria-selected="true"] .exp-number {
   }
 
   .runs-table {
-    font-size: 0.875rem;
-  }
-
-  .runs-table th,
-  .runs-table td {
-    padding-right: var(--space-1);
+    font-size: var(--text-sm);
   }
 }
 

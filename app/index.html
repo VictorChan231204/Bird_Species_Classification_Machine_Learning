@@ -3,41 +3,68 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
-    <meta name="description" content="Identify 200 bird species from a photo. Two CNNs, ResNet-50 and ConvNeXt-Tiny, run in your browser." />
+    <meta name="color-scheme" content="light" />
+    <meta name="description" content="Identify 200 bird species from a photo. An ensemble of two CNNs, ResNet-50 and ConvNeXt-Tiny, runs in your browser." />
     <title>Bird Species Classification</title>
   </head>
   <body>
     <!--
-      THESIS: The photo hangs alone in a dark room under one light, and the model's answer is its wall label.
-        Refuses the two-column demo app: dropzone left, result card right, tabs below.
-      OWN-WORLD: Matte black wall, a soft pool of warm light, one off-white printed label card in Libre Franklin.
-        Two type sizes only; rank from weight, case and hairline rules. Hairlines are the only chart form: bars and learning curves.
-      STORY: The marker sees a real bird identified on arrival, tries another in one click, reads how it works, then opens
-        the experiments 1 to 8 that led to 89.7%, each with its runs, settings and learning curve.
-      FIRST VIEWPORT: Photo centre-left in the light, about 60% of the height. Label card to its right: species,
-        confidence, top 5, each network's vote. "Choose a photo" under the label. Eight example photos along the bottom.
-      FORM: Gallery Wall, candidate 7 of 7, seed a402a4cd (re-roll 1).
-      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md,
-        and every shipping raster carrying its provenance
+      LAYOUT: a classifier page, top to bottom: title, byline and task tags; the photo with "Choose a photo" and the
+        example photos (left) beside the Ensemble's answer card and the "Member models" table (right); the model card;
+        then the experiments 1 to 8 that led to the final model.
+      LOOK: a light field-guide page: warm off-white background, white panels with borders, dark text, one forest-green
+        accent for buttons, tags and bars (style.css).
+      NAMES: "Ensemble" is the final model: the average of ResNet-50 and ConvNeXt-Tiny. Its test scores (89.7% Top-1)
+        belong to the Ensemble only; each member network's own score is shown beside it.
     -->
-    <header class="masthead">
-      <p class="masthead-title">Bird Species Classification</p>
-      <p class="masthead-meta">Victor Chan · 104384986 · COS30082</p>
-    </header>
-
     <main>
-      <!-- The room: one photo under the light, its label beside it, the examples along the bottom edge. -->
-      <section class="room" id="room" aria-label="Identify a bird">
-        <figure class="artwork">
-          <div class="light" aria-hidden="true"></div>
-          <img id="photo" alt="" hidden /><!-- main.ts sets the photo and shows it -->
-          <figcaption class="visually-hidden" id="photo-caption"></figcaption>
-        </figure>
+      <!-- Title, byline and what kind of model this is. -->
+      <header class="hero">
+        <h1 class="hero-title">Bird Species Classification</h1>
+        <p class="hero-byline">Victor Chan · 104384986 · COS30082 Assignment 1</p>
+        <ul class="tags" aria-label="Model tags">
+          <li>Image classification</li>
+          <li>200 bird species</li>
+          <li>CNN</li>
+          <li>Ensemble</li>
+          <li>CUB-200</li>
+          <li>PyTorch</li>
+          <li>ONNX in the browser</li>
+        </ul>
+      </header>
 
-        <div class="label-column">
-          <article class="label" id="label" aria-live="polite">
-            <h1 class="label-species" id="label-species">Loading the networks</h1>
+      <!-- The demo: the photo and how to choose one (left), the answer and each member network's vote (right). -->
+      <section class="demo" id="demo" aria-label="Identify a bird">
+        <div class="input">
+          <figure class="artwork">
+            <img id="photo" alt="" hidden /><!-- main.ts sets the photo and shows it -->
+          </figure>
+
+          <div class="actions">
+            <label class="button">
+              <input type="file" id="file-input" accept="image/*" class="visually-hidden" />
+              Choose a photo
+            </label>
+            <p class="actions-hint">or drop or paste one anywhere. It knows 200 species, mostly North American.</p>
+          </div>
+
+          <nav class="examples" aria-label="Example photos">
+            <p class="examples-caption">Or try a test photo, drawn at random</p>
+            <ul id="examples"></ul>
+          </nav>
+        </div>
+
+        <div class="output">
+          <!-- The Ensemble's answer: species, probability, top 5, then the credit line. -->
+          <article class="label" id="label" aria-live="polite" aria-labelledby="label-title">
+            <header class="label-head">
+              <div>
+                <h2 class="label-title" id="label-title">Ensemble</h2>
+                <p class="label-what">ResNet-50 and ConvNeXt-Tiny, averaged</p>
+              </div>
+              <p class="label-score" id="label-score"></p><!-- main.ts writes the Ensemble's test Top-1 -->
+            </header>
+            <p class="label-species" id="label-species">Loading the networks</p>
             <p class="label-confidence" id="label-confidence"></p>
 
             <div class="label-progress" id="label-progress">
@@ -45,69 +72,104 @@
               <p id="progress-text">Starting the download</p>
             </div>
 
-            <ol class="top5" id="top5" aria-label="Five most likely species"></ol>
+            <ol class="top5" id="top5" aria-label="The Ensemble's five most likely species"></ol>
 
-            <!-- Each network's vote: its top species, then that species' probability. -->
-            <dl class="votes" id="votes" hidden>
-              <div>
-                <dt>ResNet-50</dt>
-                <dd id="vote-resnet">Waiting</dd>
-                <dd class="vote-value" id="vote-resnet-value"></dd>
-              </div>
-              <div>
-                <dt>ConvNeXt-Tiny</dt>
-                <dd id="vote-convnext">Waiting</dd>
-                <dd class="vote-value" id="vote-convnext-value"></dd>
-              </div>
-            </dl>
-
-            <!-- The credit line at the foot of the label: where the photo came from, the test set's answer, any caution. -->
+            <!-- The credit line at the foot of the card: where the photo came from, the test set's answer, any caution. -->
             <div class="label-foot">
               <p class="label-source" id="label-source">Example photo</p>
               <p class="label-truth" id="label-truth" hidden></p>
               <p class="label-note" id="label-note" hidden></p>
             </div>
           </article>
-        </div>
 
-        <!-- Everything that can hang on the wall, in one strip: your own photo, or one of the examples. -->
-        <div class="strip">
-          <div class="actions">
-            <label class="button">
-              <input type="file" id="file-input" accept="image/*" class="visually-hidden" />
-              Choose a photo
-            </label>
-            <p class="actions-hint">or drop or paste one anywhere. It knows 200 North American species.</p>
-          </div>
-          <nav class="examples" aria-label="Example photos">
-            <p class="examples-caption">Or try a test photo, drawn at random</p>
-            <ul id="examples"></ul>
-          </nav>
+          <!-- Each member network's vote for this photo, next to its own test score; the Ensemble's row closes the table. -->
+          <section class="members" aria-labelledby="members-title">
+            <h2 class="members-title" id="members-title">Member models</h2>
+            <table class="members-table">
+              <thead>
+                <tr>
+                  <th scope="col">Network</th>
+                  <th scope="col">This photo</th>
+                  <th scope="col" class="num">Test Top-1</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">ResNet-50</th>
+                  <td><span id="vote-resnet">Waiting</span> <span class="vote-value" id="vote-resnet-value"></span></td>
+                  <td class="num" id="score-resnet"></td>
+                </tr>
+                <tr>
+                  <th scope="row">ConvNeXt-Tiny</th>
+                  <td><span id="vote-convnext">Waiting</span> <span class="vote-value" id="vote-convnext-value"></span></td>
+                  <td class="num" id="score-convnext"></td>
+                </tr>
+                <tr class="is-ensemble">
+                  <th scope="row">Ensemble</th>
+                  <td><span id="vote-ensemble">Waiting</span> <span class="vote-value" id="vote-ensemble-value"></span></td>
+                  <td class="num" id="score-ensemble"></td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="members-note" id="members-note"></p>
+          </section>
         </div>
       </section>
 
-      <!-- How the answer is made: four steps, then the scores. -->
-      <section class="decides" aria-labelledby="decides-title">
-        <h2 class="section-title" id="decides-title">How it works</h2>
-        <ol class="steps">
-          <li>
-            <h3>Crop</h3>
-            <p>The photo's short side is resized to 512 pixels, and the middle 448 × 448 square is kept. Training scored its test photos the same way.</p>
-          </li>
-          <li>
-            <h3>Two networks</h3>
-            <p>ResNet-50 and ConvNeXt-Tiny, both CNNs pretrained on ImageNet and fine-tuned on 4,829 bird photos, each give a probability for all 200 species.</p>
-          </li>
-          <li>
-            <h3>Average</h3>
-            <p>The two probability lists are averaged with equal weight. The most likely species after averaging is the answer.</p>
-          </li>
-          <li>
-            <h3>In your browser</h3>
-            <p>Both networks run in this browser with onnxruntime-web, on the graphics card when it can.</p>
-          </li>
-        </ol>
-        <p class="decides-score" id="final-score"></p>
+      <!-- The model card: what the final model is, what it learned from, how it scores, and where it fails. -->
+      <section class="card-section" aria-labelledby="card-title">
+        <h2 class="section-title" id="card-title">Model card</h2>
+        <div class="card-grid">
+          <section class="card-part card-details">
+            <h3>Details</h3>
+            <dl class="facts">
+              <div><dt>Model</dt><dd>Ensemble of two CNNs. Each gives a probability for all 200 species; the two lists are averaged with equal weight, and the highest is the answer.</dd></div>
+              <div><dt>Networks</dt><dd>ResNet-50 (23.9 million weights) and ConvNeXt-Tiny (28.0 million weights), both starting from torchvision's ImageNet-1k weights.</dd></div>
+              <div><dt>Input</dt><dd>One colour photo. The short side is resized to 512 pixels and the middle 448 × 448 square is kept.</dd></div>
+              <div><dt>Output</dt><dd>200 probabilities, one per species.</dd></div>
+              <div><dt>Training</dt><dd>Every layer fine-tuned for 30 epochs: SGD with momentum 0.9, warm-up then cosine learning rate, label smoothing 0.1, weight decay, dropout 0.3, strong augmentation.</dd></div>
+              <div><dt>Runs in</dt><dd>This browser, with onnxruntime-web: on the graphics card when it can, else on the processor. Two ONNX files, 104.7 MB, downloaded once per visit.</dd></div>
+            </dl>
+          </section>
+
+          <section class="card-part card-data">
+            <h3>Training data</h3>
+            <p>Caltech-UCSD Birds 200 (CUB-200, 2010 version): 6,033 photos of 200 species. 4,829 are training photos, about 24 per species; 1,204 are test photos.</p>
+            <p>During experiments 1 to 7, 800 training photos were held back as validation photos to choose the settings. The final model then trained on all 4,829. The test photos never chose anything.</p>
+          </section>
+
+          <section class="card-part card-metrics">
+            <h3>Test metrics</h3>
+            <table class="metrics-table">
+              <thead>
+                <tr>
+                  <th scope="col">Model</th>
+                  <th scope="col" class="num">Top-1</th>
+                  <th scope="col" class="num">Average per-class</th>
+                </tr>
+              </thead>
+              <tbody id="metrics"></tbody>
+            </table>
+            <p class="metrics-note" id="metrics-note"></p>
+          </section>
+
+          <section class="card-part card-use">
+            <h3>Intended use</h3>
+            <p>A coursework demonstration: name the species of one bird in a photo, out of the 200 species in CUB-200.</p>
+            <p>It is not a field guide. Check a real sighting against a trusted guide.</p>
+          </section>
+
+          <section class="card-part card-limits">
+            <h3>Limitations</h3>
+            <ul class="limits">
+              <li>It knows only 200 species. Any other bird, or a photo with no bird, still gets one of the 200 names.</li>
+              <li>It learned from about 24 photos per species, so rare poses and lighting can fool it.</li>
+              <li>It looks only at the middle square of the photo. A bird near the edge may be cut off.</li>
+              <li id="limit-confidence"></li>
+              <li>The test photos come from the same collection as the training photos. Photos from other sources may score lower (an estimate, not measured).</li>
+            </ul>
+          </section>
+        </div>
       </section>
 
       <!-- The experiments: one table row per experiment; the selected one opens below (experiments.ts). -->
@@ -123,7 +185,7 @@
       <p>Dataset: Caltech-UCSD Birds 200 (CUB-200). Networks: PyTorch, exported to ONNX.</p>
     </footer>
 
-    <div class="drop-veil" id="drop-veil" hidden><p>Drop the photo to hang it</p></div>
+    <div class="drop-veil" id="drop-veil" hidden><p>Drop the photo to identify it</p></div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

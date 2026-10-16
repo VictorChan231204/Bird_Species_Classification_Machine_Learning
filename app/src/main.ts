@@ -1,10 +1,10 @@
 /**
- * The page's behaviour: hang a photo in the room, run the final model, and write the answer onto the wall label.
+ * The page's behaviour: show a photo, run the final model (the Ensemble), and write its answer onto the card.
  *
- * Flow: on load the first example photo hangs at once and the two networks start downloading. When they are ready,
- * the hanging photo is classified. Every later photo (an example click, a chosen file, a drop or a paste) is
- * classified straight away. The label first shows ResNet-50's vote, then the rows move into the averaged order
- * when ConvNeXt-Tiny's vote lands.
+ * Flow: on load the first example photo shows at once and the two networks start downloading. When they are ready,
+ * the photo is classified. Every later photo (an example click, a chosen file, a drop or a paste) is classified
+ * straight away. The card first shows ResNet-50's top 5, then the rows move into the Ensemble's order when
+ * ConvNeXt-Tiny's vote lands. The "Member models" table shows each network's own vote and test score.
  */
 
 import "@fontsource-variable/libre-franklin";
@@ -14,7 +14,7 @@ import { classify, loadNetworks, toPixels, topK, type Vote } from "./classifier"
 import confidence from "./data/confidence.json";
 import examples from "./data/examples.json";
 import species from "./data/species.json";
-import { FINAL, INTRO, pct, renderExperiments } from "./experiments";
+import { FINAL, INTRO, MEMBERS, pct, renderExperiments } from "./experiments";
 
 /** Find a page element by id, typed; a missing id is a bug in index.html, so it stops the page loudly. */
 function $<T extends HTMLElement>(id: string): T {
@@ -24,7 +24,7 @@ function $<T extends HTMLElement>(id: string): T {
 }
 
 const ui = {
-  room: $("room"),
+  demo: $("demo"),
   photo: $<HTMLImageElement>("photo"),
   source: $("label-source"),
   species: $("label-species"),
@@ -33,11 +33,12 @@ const ui = {
   progressFill: $("progress-fill"),
   progressText: $("progress-text"),
   top5: $<HTMLOListElement>("top5"),
-  votes: $("votes"),
-  voteResnet: $("vote-resnet"),
-  voteConvnext: $("vote-convnext"),
-  voteResnetValue: $("vote-resnet-value"),
-  voteConvnextValue: $("vote-convnext-value"),
+  // The "Member models" table: each network's top species and its probability, then the Ensemble's.
+  vote: {
+    "ResNet-50": { species: $("vote-resnet"), value: $("vote-resnet-value") },
+    "ConvNeXt-Tiny": { species: $("vote-convnext"), value: $("vote-convnext-value") },
+    Ensemble: { species: $("vote-ensemble"), value: $("vote-ensemble-value") },
+  },
   truth: $("label-truth"),
   note: $("label-note"),
   fileInput: $<HTMLInputElement>("file-input"),
@@ -45,7 +46,7 @@ const ui = {
   dropVeil: $("drop-veil"),
 };
 
-/** What hangs on the wall: an example (with its known species) or the visitor's own photo. */
+/** The photo on show: an example (with its known species) or the visitor's own photo. */
 type Hanging = { kind: "example"; index: number } | { kind: "upload"; file: File };
 
 // Below this top probability the label says the model is unsure (0.3, set and measured in make_app_data.py).
@@ -53,12 +54,12 @@ const LOW_CONFIDENCE = confidence.threshold;
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 let networksReady = false;
-let current: { hanging: Hanging; bitmap: ImageBitmap } | null = null;
+let current: { hanging: Hanging; bitmap: ImageBitmap } | null = null; // the photo on show and its decoded pixels
 let runId = 0; // each new photo bumps this, so an answer for an older photo is dropped
 
 // ---------- Hanging a photo ----------
 
-/** Put a photo on the wall, light it, and classify it if the networks are ready. */
+/** Show a photo and classify it if the networks are ready. */
 async function hang(hanging: Hanging): Promise<void> {
   const id = ++runId;
   const url = hanging.kind === "example" ? `examples/${examples[hanging.index]!.file}` : URL.createObjectURL(hanging.file);
@@ -82,35 +83,28 @@ async function hang(hanging: Hanging): Promise<void> {
   // Examples get a credit line ("Example photo 3 of 8"); an upload has nothing to credit, so the line is hidden.
   ui.source.hidden = hanging.kind !== "example";
   if (hanging.kind === "example") ui.source.textContent = `Example photo ${hanging.index + 1} of ${examples.length}`;
-  lightUp();
+  fadeIn();
 
   if (networksReady) await run(id);
 }
 
-/** The one authored motion: the light swells as a new photo goes up. Skipped for reduced motion. */
-function lightUp(): void {
+/** A new photo fades up in place. Skipped for reduced motion. */
+function fadeIn(): void {
   if (reducedMotion.matches) return;
-  const light = ui.room.querySelector<HTMLElement>(".light");
-  light?.animate([{ opacity: 0.35, transform: "scale(0.92)" }, { opacity: 1, transform: "scale(1)" }], {
-    duration: 900,
-    easing: "cubic-bezier(0.16, 1, 0.3, 1)",
-  });
-  ui.photo.animate([{ opacity: 0.55 }, { opacity: 1 }], { duration: 700, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
+  ui.photo.animate([{ opacity: 0.4 }, { opacity: 1 }], { duration: 500, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
 }
 
 // ---------- Running the model ----------
 
-/** Classify the hanging photo and write the label: first vote, second vote, then the average. */
+/** Classify the photo on show and fill the card and the table: first vote, second vote, then the Ensemble. */
 async function run(id: number): Promise<void> {
   if (!current) return;
   const { hanging, bitmap } = current;
   ui.species.textContent = "Looking";
   ui.confidence.textContent = "ResNet-50 is looking first, then ConvNeXt-Tiny.";
-  ui.votes.hidden = false;
-  ui.voteResnet.textContent = "Looking";
-  ui.voteConvnext.textContent = "Waiting";
-  ui.voteResnetValue.textContent = ""; // the previous photo's probabilities go until the new votes land
-  ui.voteConvnextValue.textContent = "";
+  setVote("ResNet-50", "Looking", ""); // the previous photo's votes go until the new ones land
+  setVote("ConvNeXt-Tiny", "Waiting", "");
+  setVote("Ensemble", "Waiting", "");
   ui.truth.hidden = true;
   ui.note.hidden = true;
 
@@ -119,9 +113,9 @@ async function run(id: number): Promise<void> {
       if (id !== runId) return;
       showVote(vote);
       if (vote.network === "ResNet-50") {
-        renderTop5(vote.probs); // the first vote fills the list; the average will re-rank it in place
+        renderTop5(vote.probs); // the first vote fills the list; the Ensemble will re-rank it in place
         ui.confidence.textContent = "ResNet-50 has voted. ConvNeXt-Tiny is looking.";
-        ui.voteConvnext.textContent = "Looking";
+        setVote("ConvNeXt-Tiny", "Looking", "");
       }
     });
     if (id !== runId) return;
@@ -134,19 +128,24 @@ async function run(id: number): Promise<void> {
   }
 }
 
-/** One network's top species and its probability, in the votes list (two cells, so the percentages line up). */
-function showVote(vote: Vote): void {
-  const [[index, p]] = topK(vote.probs, 1) as [[number, number]];
-  const isResnet = vote.network === "ResNet-50";
-  (isResnet ? ui.voteResnet : ui.voteConvnext).textContent = species[index]!;
-  (isResnet ? ui.voteResnetValue : ui.voteConvnextValue).textContent = pct(p);
+/** Write one row's answer in the "Member models" table: a species (or a status word) and its probability. */
+function setVote(row: keyof typeof ui.vote, text: string, value: string): void {
+  ui.vote[row].species.textContent = text;
+  ui.vote[row].value.textContent = value;
 }
 
-/** The ensemble's answer: species, confidence, re-ranked top 5, the true species for examples, and any caution. */
+/** One network's top species and its probability, in its row of the "Member models" table. */
+function showVote(vote: Vote): void {
+  const [[index, p]] = topK(vote.probs, 1) as [[number, number]];
+  setVote(vote.network, species[index]!, pct(p));
+}
+
+/** The Ensemble's answer: species, probability, re-ranked top 5, the true species for examples, and any caution. */
 function showAnswer(average: Float32Array, hanging: Hanging): void {
   const [[best, p]] = topK(average, 1) as [[number, number]];
   ui.species.textContent = species[best]!;
-  ui.confidence.textContent = `${pct(p)} sure, both networks averaged`;
+  ui.confidence.textContent = `${pct(p)} probability`;
+  setVote("Ensemble", species[best]!, pct(p));
   renderTop5(average);
 
   if (hanging.kind === "example") {
@@ -273,7 +272,7 @@ window.addEventListener("drop", (event) => {
   const file = firstImage(event.dataTransfer?.files);
   if (file) {
     void hang({ kind: "upload", file });
-    ui.room.scrollIntoView({ behavior: reducedMotion.matches ? "auto" : "smooth" });
+    ui.demo.scrollIntoView({ behavior: reducedMotion.matches ? "auto" : "smooth" });
   } else {
     showNote("That was not a photo. Drop a JPG or PNG.");
   }
@@ -285,12 +284,37 @@ window.addEventListener("paste", (event) => {
 
 // ---------- Start ----------
 
-$("final-score").textContent =
-  `On the 1,204 test photos, this model's first guess is right ${pct(FINAL.test)} of the time (Top-1 accuracy). ` +
-  `Scored species by species and then averaged, it is right ${pct(FINAL.perClass)} of the time (average per-class accuracy). ` +
-  `Its confidence reads low on purpose: label smoothing trained both networks never to be fully sure. Above ` +
-  `${pct(confidence.threshold)}, its first guess was right ${pct(confidence.sure.right)} of the time; below, ` +
-  `${pct(confidence.unsure.right)}.`;
+// Test scores, all from data/results.json: the Ensemble owns the headline number; each member network shows its own.
+$("score-resnet").textContent = pct(MEMBERS["ResNet-50"].test);
+$("score-convnext").textContent = pct(MEMBERS["ConvNeXt-Tiny"].test);
+$("score-ensemble").textContent = pct(FINAL.test);
+$("label-score").textContent = `${pct(FINAL.test)} test Top-1`;
+$("members-note").textContent =
+  `${pct(FINAL.test)} is the Ensemble's Top-1 on the 1,204 test photos. ` +
+  `Neither network reaches it alone; their probabilities averaged do.`;
+
+// The model card's test metrics: one row per model, the Ensemble first and in bold.
+const metricRows: [string, { test: number; perClass: number }, boolean][] = [
+  ["Ensemble (final model)", FINAL, true],
+  ["ResNet-50 alone", MEMBERS["ResNet-50"], false],
+  ["ConvNeXt-Tiny alone", MEMBERS["ConvNeXt-Tiny"], false],
+];
+$("metrics").replaceChildren(
+  ...metricRows.map(([name, run, isFinal]) => {
+    const row = document.createElement("tr");
+    row.classList.toggle("is-ensemble", isFinal);
+    row.innerHTML = `<th scope="row">${name}</th><td class="num">${pct(run.test)}</td><td class="num">${pct(run.perClass)}</td>`;
+    return row;
+  }),
+);
+$("metrics-note").textContent =
+  `Top-1: the share of the 1,204 test photos whose first guess is right. Average per-class: each species scored ` +
+  `alone, then the 200 scores averaged. When the Ensemble's top probability is ${pct(confidence.threshold)} or more ` +
+  `(${confidence.sure.photos.toLocaleString("en")} test photos), its first guess is right ${pct(confidence.sure.right)} ` +
+  `of the time; below that (${confidence.unsure.photos} photos), ${pct(confidence.unsure.right)}.`;
+$("limit-confidence").textContent =
+  `Its probabilities read low on purpose: label smoothing trained both networks never to be fully sure. ` +
+  `Below ${pct(confidence.threshold)}, the card marks the answer as unsure.`;
 $("experiments-intro").textContent = INTRO;
 renderExperiments($("experiments"));
 buildExamples();
