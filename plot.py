@@ -6,9 +6,11 @@ It reads results/<name>.json (per-epoch history, written by src/train.py) and ch
 probabilities) and writes:
     report/figures/progress.png                 test Top-1 of each baseline and of each step of the recipe
     report/figures/seed-noise.png               validation Top-1 of every recipe run on two seeds, and the gap between them
-    report/figures/learning-curves.png          validation Top-1 per epoch, two one-change comparisons (CURVE_PANELS)
+    report/figures/learning-curves.png          Top-1 per epoch, two one-change comparisons (CURVE_PANELS); the
+                                                regularisation panel also shows training Top-1, so the gap is visible
     report/figures/rate-scan.png                validation Top-1 against learning rate for ResNet-18 and ConvNeXt-Tiny
     report/figures/confidence.png               how often the final model is right, by how sure it is
+    report/figures/confidence-by-run.png        test Top-1 against average top probability, one row per regulariser
     report/figures/confused-pairs.png           the species pairs the final model mixes up most: the wrong test photo
                                                 beside a training photo of the species it guessed
     report/figures/example-predictions.png      test photos with the final model's top 3 guesses
@@ -42,7 +44,9 @@ CURVE_PANELS = {
     "Schedule: fixed rates against warm-up + cosine": {"2-control": "fixed rates", "3-adam-cosine": "warm-up + cosine"},
     "Regularisation: four tools added": {"3-sgd-lr3e-03": "without", "5-combined": "with the four tools"},
 }
-CURVE_FLOOR = 50  # the y axis starts here, so the 75-90% band where the runs differ is readable; epoch 1 sits below it
+CURVE_FLOOR = 50  # the y axis starts here, so the 75-100% band where the runs differ is readable; epoch 1 sits below it
+# Panels that also draw training Top-1 (dashed), so the gap between training and validation shows overfitting
+TRAIN_LINE_PANELS = {"Regularisation: four tools added"}
 TOP_PAIRS = 4  # pairs in the confused-pairs picture
 EXAMPLES = 3  # right and wrong examples each in the example-predictions picture
 PHOTO_SHAPE = 4 / 3  # every photo is padded to this width/height, so the photos in a picture line up
@@ -88,6 +92,11 @@ SEEDED = ["3-adam-cosine", "3-sgd-lr1e-03", "3-sgd-lr3e-03", "4-batch24-lr3e-03"
 RATE_SCAN = {"ResNet-18": "6-resnet18-lr{}", "ConvNeXt-Tiny": "6-convnext-lr{}"}
 RATES = {1e-3: "1e-03", 3e-3: "3e-03", 1e-2: "1e-02"}
 UNSURE_BELOW = 0.3  # the web app's "unsure" cut-off (make_app_data.py), marked on the confidence chart
+# Confidence-by-run chart: the experiment-5 runs, each adding one regulariser to 3-sgd-lr3e-03, then all four.
+# Only label smoothing changes the target the loss aims at, so only it should move the probabilities this much.
+CONFIDENCE_RUNS = {"3-sgd-lr3e-03": "no regulariser", "5-weight-decay": "+ weight decay", "5-dropout": "+ dropout",
+                   "5-strong-augment": "+ strong augmentation", "5-label-smoothing": "+ label smoothing",
+                   "5-combined": "+ all four"}
 
 
 def final_test_probs() -> tuple[np.ndarray, np.ndarray]:
@@ -195,20 +204,56 @@ def plot_confidence() -> Path:
 
 def plot_learning_curves() -> Path:
     """One panel per entry in CURVE_PANELS: validation Top-1 after every epoch for two runs (W5 s73).
-    Training Top-1 is left out on purpose: train.py measures it on augmented photos while the weights still change,
-    so it is not a fair partner for the validation line. A jumpy line means the steps are too big to settle."""
-    fig, axes = plt.subplots(1, len(CURVE_PANELS), figsize=(9, 3.2), sharey=True)
+    A jumpy line means the steps are too big to settle. Panels in TRAIN_LINE_PANELS also draw training Top-1 as a
+    dashed line in the run's colour: the space between the two lines of one run is its overfitting gap.
+    Caveat for the training line: train.py measures it on augmented photos, with dropout on, while the weights still
+    change. It understates how well the network knows its training photos, most of all for 5-combined."""
+    fig, axes = plt.subplots(1, len(CURVE_PANELS), figsize=(9, 3.4), sharey=True)
     for ax, (title, runs) in zip(axes, CURVE_PANELS.items()):
         for name, label in runs.items():
             history = json.loads((ROOT / "results" / f"{name}.json").read_text())["history"]  # one row per epoch
-            ax.plot([row["epoch"] for row in history], [100 * row["val_top1"] for row in history],
-                    label=f"{name} ({label})")
-        ax.set(title=title, xlabel="Epoch", ylim=(CURVE_FLOOR, 90))
-        ax.legend(loc="lower right", fontsize=8)
-    axes[0].set_ylabel("Validation Top-1 (%)")
+            epochs = [row["epoch"] for row in history]
+            line, = ax.plot(epochs, [100 * row["val_top1"] for row in history], label=f"{name} ({label}), validation")
+            if title in TRAIN_LINE_PANELS:  # same colour, dashed: the run's training photos
+                ax.plot(epochs, [100 * row["train_top1"] for row in history], color=line.get_color(),
+                        linestyle="--", linewidth=1.3, label=f"{name}, training")
+        ax.set(title=title, xlabel="Epoch", ylim=(CURVE_FLOOR, 100))
+        ax.legend(loc="lower right", fontsize=7.5)
+    axes[0].set_ylabel("Top-1 (%)")
     fig.tight_layout()
     path = FIGURES_DIR / "learning-curves.png"
     fig.savefig(path, dpi=200)
+    return path
+
+
+def plot_confidence_by_run() -> Path:
+    """A dumbbell per CONFIDENCE_RUNS entry, on the test photos: test Top-1 (blue) and the average top probability
+    (orange), joined by a line. Orange right of blue = overconfident (sure more often than right); orange left of
+    blue = underconfident. The signed gap (probability minus Top-1, in points) sits at the right.
+    Built to test one guess: is label smoothing the reason the final model is underconfident (confidence.png)?"""
+    fig, ax = plt.subplots(figsize=(7.2, 2.7))
+    names = list(CONFIDENCE_RUNS)[::-1]  # first run at the top
+    top1, sure = [], []
+    for name in names:
+        saved = np.load(CHECKPOINT_DIR / f"{name}-probs.npz")
+        probs, y_true = saved["test"], saved["test_labels"]
+        top1.append(100 * float((probs.argmax(axis=1) == y_true).mean()))  # how often the first guess is right
+        sure.append(100 * float(probs.max(axis=1).mean()))  # how sure the first guess is, on average
+    for y, (a, b) in enumerate(zip(top1, sure)):
+        ax.plot([a, b], [y, y], color="#c4c3bd", linewidth=2, zorder=1)
+        ax.text(max(a, b) + 0.8, y, f"{b - a:+.1f}", va="center", fontsize=8, color=INK_SOFT)  # the signed gap
+    ax.scatter(top1, range(len(names)), s=40, color=BLUE, edgecolor="white", linewidth=1.2, zorder=2,
+               label="test Top-1")
+    ax.scatter(sure, range(len(names)), s=40, color=ORANGE, edgecolor="white", linewidth=1.2, zorder=2,
+               label="average top probability")
+    ax.set_yticks(range(len(names)), [f"{CONFIDENCE_RUNS[n]}\n{n}" for n in names], fontsize=8)
+    ax.tick_params(axis="y", length=0)
+    ax.grid(axis="y", visible=False)
+    ax.set(xlabel="Percent. Number at the right: average top probability minus Top-1, in points", xlim=(55, 97))
+    ax.legend(loc="lower left", bbox_to_anchor=(0, 1), ncols=2)  # above the plot, clear of the dots
+    fig.tight_layout()
+    path = FIGURES_DIR / "confidence-by-run.png"
+    fig.savefig(path)
     return path
 
 
@@ -347,7 +392,8 @@ def analyse_final() -> dict:
 
 if __name__ == "__main__":
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-    for draw in (plot_progress, plot_seed_noise, plot_learning_curves, plot_rate_scan, plot_confidence):
+    for draw in (plot_progress, plot_seed_noise, plot_learning_curves, plot_rate_scan, plot_confidence,
+                 plot_confidence_by_run):
         print(draw())
     summary = analyse_final()
     print(json.dumps({k: v for k, v in summary.items() if k != "examples"}, indent=2))
