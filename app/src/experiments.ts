@@ -370,7 +370,8 @@ function settingsRows(run: RunName): [string, string][] {
 const HOW_TO_READ = `
   <ul class="how-to-read">
     <li>Each point is Top-1 accuracy after one epoch, one pass over every training photo.</li>
-    <li><span class="key key-train"></span>Grey: the training photos the network learns from. <span class="key key-val"></span>Blue: the 800 validation photos it never learns from.</li>
+    <li><span class="key key-train"></span>Grey line: accuracy on the 4,029 training photos, the photos the network learns from.</li>
+    <li><span class="key key-val"></span>Blue line: accuracy on 800 validation photos, held back from training. They show how the network does on photos it has not seen.</li>
     <li>The gap between them is overfitting: the network knows its own training photos better than new ones. A smaller gap is better.</li>
     <li>The dot marks the kept epoch: the weights with the best validation score are the ones scored on test.</li>
   </ul>`;

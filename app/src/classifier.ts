@@ -2,7 +2,8 @@
  * Any exported run, running in the browser: the final model by default, or any run the visitor picks.
  *
  * main.ts calls, in order:
- *   loadModel(run, onProgress) - downloads that run's ONNX file (23 to 66 MB) and opens an onnxruntime session
+ *   loadModel(run, onProgress) - downloads that run's ONNX file (23 to 66 MB) from the model repo
+ *                                VictorCKW/bird-species-models and opens an onnxruntime session
  *   toPixels(image)            - turns a photo into the 448 x 448 input every run expects
  *   classify(run, pixels)      - runs the network once and returns its 200 outputs
  *

@@ -6,11 +6,13 @@ Usage, from the project root (after export_onnx.py):
 Writes:
     app/src/data/species.json    - the 200 species names, index = species number (tracked)
     app/src/data/results.json    - scores, settings and learning curves of every trained and SVM run (tracked)
-    app/src/data/models.json     - every run the app can classify with: file, size and kind (tracked)
+    app/src/data/models.json     - every run the app can classify with: download address, size and kind (tracked)
     app/src/data/examples.json   - the example photos: file name and true species number (tracked)
     app/src/data/confidence.json - how often the final model is right when it is unsure and when it is sure (tracked)
     app/public/examples/*.jpg    - 8 hand-picked test photos, copied unchanged (tracked)
-    app/public/models/*.onnx     - copies of every checkpoints/<run>.onnx from export_onnx.py --all (gitignored, 1.4 GB)
+The ONNX files themselves are not copied into the app: they total 1.4 GB, and a Space holds at most 1 GB. They live
+in the public model repo MODEL_BASE points at (uploaded by deploy_space.py --models), and the site downloads each one
+from there when the visitor picks it.
 The app reads every number it shows from results.json, so each score on the site traces back to a file in results/.
 """
 
@@ -38,6 +40,7 @@ EXAMPLES = (
     55,  # hard: Red-winged Blackbird against the light, right but only 15.9%
     160,  # hard: American Crow, guessed Fish Crow (two all-black crows that differ mainly by voice)
 )
+MODEL_BASE = "https://huggingface.co/VictorCKW/bird-species-models/resolve/main"  # where the site downloads networks
 FINAL = "8-final-convnext"  # the final model: ConvNeXt-Tiny retrained on all 4,829 training photos
 UNSURE_BELOW = 0.3  # the app calls an answer "low confidence" when its top probability is under this
 
@@ -166,18 +169,14 @@ def write_examples() -> list[dict]:
 
 
 def write_models() -> dict[str, dict]:
-    """Copy every exported run (checkpoints/<run>.onnx, from export_onnx.py --all) into the app, and describe each.
-    kind: "cnn" outputs 200 probabilities; "svm" outputs 200 SVM scores, which are not probabilities.
-    bytes: the file size, for the download progress bar."""
-    model_dir = APP_DIR / "public" / "models"
-    model_dir.mkdir(parents=True, exist_ok=True)
-    for old in model_dir.glob("*.onnx"):
-        old.unlink()  # a run dropped since the last copy must not linger on the Space
+    """Describe every exported run (checkpoints/<run>.onnx, from export_onnx.py --all) for the app.
+    file: its download address in the model repo. kind: "cnn" outputs 200 probabilities; "svm" outputs 200 SVM
+    scores, which are not probabilities. bytes: the file size, for the download progress bar."""
+    shutil.rmtree(APP_DIR / "public" / "models", ignore_errors=True)  # copies from before the model repo existed
     models = {}
     for path in sorted(CHECKPOINT_DIR.glob("*.onnx")):
-        shutil.copyfile(path, model_dir / path.name)
         models[path.stem] = {
-            "file": f"models/{path.name}",
+            "file": f"{MODEL_BASE}/{path.name}",
             "bytes": path.stat().st_size,
             "kind": "svm" if "svm" in path.stem else "cnn",
         }
@@ -194,7 +193,7 @@ def main() -> None:
     (data_dir / "confidence.json").write_text(json.dumps(confidence_check(), indent=1) + "\n")
 
     (data_dir / "models.json").write_text(json.dumps(write_models(), indent=1) + "\n")
-    print(f"wrote {data_dir} and {APP_DIR / 'public' / 'models'}")
+    print(f"wrote {data_dir} and {APP_DIR / 'public' / 'examples'}")
 
 
 if __name__ == "__main__":
