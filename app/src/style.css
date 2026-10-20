@@ -583,6 +583,7 @@ a {
 }
 
 .explorer {
+  scroll-margin-top: var(--space-3); /* a little space above it when a small chart scrolls the page here */
   margin-top: var(--space-3);
   padding: var(--space-3);
   border: 1px solid var(--border);

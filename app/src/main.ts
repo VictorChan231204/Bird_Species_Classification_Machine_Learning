@@ -360,7 +360,11 @@ $("limit-confidence").textContent =
 $("decisions-intro").textContent = DECISIONS_INTRO;
 renderDecisions($("decisions"));
 $("training-intro").textContent = TRAINING_INTRO;
-renderGrid(ui.grid, showInExplorer);
+// Selecting a small chart opens it in the large chart and scrolls there, so the visitor sees it straight away.
+renderGrid(ui.grid, (run) => {
+  showInExplorer(run);
+  ui.explorer.scrollIntoView({ behavior: reducedMotion.matches ? "auto" : "smooth", block: "start" });
+});
 
 buildPicker();
 buildExamples();
