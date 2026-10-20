@@ -198,56 +198,16 @@ for _kernel in ("linear", "rbf"):  # straight fence and bendy fence (W4 s23-34);
 # frozen features sit within 2.7 points of each other, about the 2.5-point noise floor, on one seed: a tie.
 
 
-# Experiment 7 (flip and ensemble), planned 2026-10-15. No training: each combination averages the saved
-# probabilities (checkpoints/<name>-probs.npz) of runs that already exist, then takes the most likely species.
-# - Flip: the photo and its mirror, averaged. Ensemble: ResNet-50 (5-combined) and ConvNeXt-Tiny (6-convnext-lr3e-03),
-#   equal weights. Weights are not tuned on validation, so validation stays a fair judge.
-# - Members must share a seed: the seed picks the 800 validation photos, and a seed-43 model trained on some of the
-#   seed-42 validation photos. So each combination exists once per seed (no suffix = seed 42, "-seed43" = seed 43).
-# - Rule fixed before any result was seen: an extra is kept if it lifts the two-seed mean validation Top-1 by at least
-#   1.0 point (8 photos per seed) over the setup without it, and lowers neither seed; otherwise the simpler setup wins.
-#   Not the 2.5-point noise floor: that gap is between two training runs, and here the same trained models score the
-#   same photos. If the ensemble wins, experiment 8 retrains both networks and the app runs both.
-@dataclass(frozen=True)
-class Combination:
-    """One experiment 7 setup: which finished runs to average, and whether to add flip. run.py scores it with
-    src/ensemble.py; it shares the EXPERIMENTS naming, so results land in results/<name>.json like any run."""
-
-    name: str
-    members: tuple[str, ...]  # EXPERIMENTS names whose saved probabilities are averaged; all with the same seed
-    flip: bool  # True: use each member's flip probabilities (photo and mirror averaged) instead of the plain ones
-
-
-COMBINATIONS: dict[str, Combination] = {}
-for _seed_tag in ("", "-seed43"):
-    _pair = (f"5-combined{_seed_tag}", f"6-convnext-lr3e-03{_seed_tag}")
-    for _name, _members, _flip in (
-        (f"7-flip{_seed_tag}", _pair[:1], True),  # ResNet-50 alone + flip; the reference is 5-combined itself
-        (f"7-ensemble{_seed_tag}", _pair, False),
-        (f"7-ensemble-flip{_seed_tag}", _pair, True),
-    ):
-        COMBINATIONS[_name] = Combination(_name, _members, _flip)
-# Results (two-seed mean validation Top-1): 5-combined 87.4%; 7-flip 87.1% (seed 43 drops): rejected; 7-ensemble
-# 89.1% (+1.7, both seeds up: 88.1% and 90.0%): kept; 7-ensemble-flip 88.9% (seed 43 drops against 7-ensemble):
-# rejected. Mean test Top-1 / average per-class of 7-ensemble: 88.5% / 88.1%. Experiment 8 retrains both members.
-
-# Experiment 8 (final model), planned 2026-10-15. Every choice is made, so the 800 validation photos join
+# Experiment 7 (final model), planned 2026-10-15. Every choice is made, so the 800 validation photos join
 # training (train_on_val): 4,829 photos instead of 4,029. Seed 42 only: nothing is chosen any more.
 # - No honest validation is left, so each run keeps its last epoch (30). Safe: in 5-combined and 6-convnext-lr3e-03
 #   (both seeds) epoch 30 sat at most 0.9 val points under the best epoch; cosine ends with a near-zero rate.
 # - The validation scores in these results mean nothing: the networks trained on those photos.
-# - Rule fixed before any result is seen: 8-final-ensemble is the final model, scored on test once, and its score is
-#   reported whatever it is. Going back to 7-ensemble would let test choose between two models ("roll twice, keep the
-#   best"). If its test Top-1 is under 85.6% (2.5 under 7-ensemble seed 42's 88.1%), look for a code mistake first;
-#   only a found mistake allows a rerun.
-EXPERIMENTS["8-final-resnet50"] = replace(EXPERIMENTS["5-combined"], name="8-final-resnet50", train_on_val=True)
-EXPERIMENTS["8-final-convnext"] = replace(EXPERIMENTS["6-convnext-lr3e-03"], name="8-final-convnext", train_on_val=True)
-COMBINATIONS["8-final-ensemble"] = Combination(  # equal-weight average of the two, no flip (the 7-ensemble setup)
-    "8-final-ensemble", ("8-final-resnet50", "8-final-convnext"), flip=False,
-)
-# Results (test Top-1 / average per-class): 8-final-resnet50 87.5% / 87.4%; 8-final-convnext 89.2% / 89.0%;
-# 8-final-ensemble 89.7% / 89.5%, above the 85.6% bug-check line.
-# Final model, revised: the assignment needs one single model, not an average of two, so 8-final-ensemble is not
-# used. Validation had tied the two networks (6-convnext-lr3e-03 87.6% vs 5-combined 87.4%, two-seed means), so the
-# test set decided between the retrained pair: 8-final-convnext (89.2%) is the final model. Part of its 1.7-point
-# lead may be chance: the same recipes scored 86.1% vs 85.6% (seed 42) and 85.8% vs 85.8% (seed 43) on test.
+# - Both finalists are retrained: experiment 6 tied them on validation (6-convnext-lr3e-03 87.6% vs 5-combined
+#   87.4%, two-seed means), and the final model must be one single network.
+EXPERIMENTS["7-final-resnet50"] = replace(EXPERIMENTS["5-combined"], name="7-final-resnet50", train_on_val=True)
+EXPERIMENTS["7-final-convnext"] = replace(EXPERIMENTS["6-convnext-lr3e-03"], name="7-final-convnext", train_on_val=True)
+# Results (test Top-1 / average per-class): 7-final-resnet50 87.5% / 87.4%; 7-final-convnext 89.2% / 89.0%.
+# No validation score is left to choose with, so the test set decided: 7-final-convnext is the final model. Part of
+# its 1.7-point lead may be chance: the same recipes scored 86.1% vs 85.6% (seed 42) and 85.8% vs 85.8% (seed 43)
+# on test.

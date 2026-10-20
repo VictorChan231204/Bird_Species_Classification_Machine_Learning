@@ -83,10 +83,10 @@ const NOISE = Math.max(
 const test = (run: RunName): number => RUNS[run].test;
 
 /** The final model on this site: ConvNeXt-Tiny retrained on all 4,829 training photos. */
-export const FINAL_RUN = "8-final-convnext" satisfies RunName;
+export const FINAL_RUN = "7-final-convnext" satisfies RunName;
 export const FINAL = RUNS[FINAL_RUN];
 /** The other network of the final round: the same ResNet-50 recipe, also retrained on all photos. */
-export const RUNNER_UP = RUNS["8-final-resnet50"];
+export const RUNNER_UP = RUNS["7-final-resnet50"];
 
 // ---------- Run names and groups ----------
 
@@ -107,8 +107,8 @@ export const GROUPS: Group[] = [
   {
     title: "Final model",
     runs: [
-      { run: "8-final-convnext", label: "ConvNeXt-Tiny, final model", kept: true },
-      { run: "8-final-resnet50", label: "ResNet-50, runner-up" },
+      { run: "7-final-convnext", label: "ConvNeXt-Tiny, final model", kept: true },
+      { run: "7-final-resnet50", label: "ResNet-50, runner-up" },
     ],
   },
   {
@@ -272,8 +272,8 @@ export function renderDecisions(root: HTMLElement): void {
 /** A final run trained on the validation photos, so it has no validation line. Its chart borrows the validation
  * line of the same recipe's earlier run, which held those 800 photos back. */
 const RECIPE_TWIN: Partial<Record<RunName, RunName>> = {
-  "8-final-convnext": "6-convnext-lr3e-03",
-  "8-final-resnet50": "5-combined",
+  "7-final-convnext": "6-convnext-lr3e-03",
+  "7-final-resnet50": "5-combined",
 };
 
 /** Last value of a curve. */

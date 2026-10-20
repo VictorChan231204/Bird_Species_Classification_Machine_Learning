@@ -9,14 +9,14 @@ A CNN that names the species of a bird in a photo, out of the 200 species of Cal
 
 ## Results
 
-Final model: `8-final-convnext`, a ConvNeXt-Tiny pretrained on ImageNet-1k and fine-tuned on all 4,829 training
+Final model: `7-final-convnext`, a ConvNeXt-Tiny pretrained on ImageNet-1k and fine-tuned on all 4,829 training
 photos. ResNet-50 and ConvNeXt-Tiny tied on the validation photos; both were retrained on all training photos, and
 the test set decided between them.
 
 | Model, on the 1,204 test photos | Top-1 accuracy | Average per-class accuracy |
 |---|---|---|
-| **ConvNeXt-Tiny (`8-final-convnext`), final model** | **89.2%** | **89.0%** |
-| ResNet-50 (`8-final-resnet50`), runner-up | 87.5% | 87.4% |
+| **ConvNeXt-Tiny (`7-final-convnext`), final model** | **89.2%** | **89.0%** |
+| ResNet-50 (`7-final-resnet50`), runner-up | 87.5% | 87.4% |
 
 Every run's settings, validation and test scores, and per-epoch learning curve are in `results/<run>.json`. The
 experiments and the reason for each setting are described in `src/config.py`.
@@ -69,19 +69,19 @@ project_docs/
 python evaluate.py
 ```
 
-The script downloads `8-final-convnext.onnx` (57 MB) once into `checkpoints/`, runs all 1,204 test photos through it,
+The script downloads `7-final-convnext.onnx` (57 MB) once into `checkpoints/`, runs all 1,204 test photos through it,
 and prints:
 
 ```
-8-final-convnext on 1204 test photos (ONNX, processor):
+7-final-convnext on 1204 test photos (ONNX, processor):
   Top-1 accuracy             89.0%
   Average per-class accuracy 88.9%
-  Saved during training      89.2% / 89.0% (results/8-final-convnext.json)
+  Saved during training      89.2% / 89.0% (results/7-final-convnext.json)
 ```
 
 The ONNX file stores its weights as 16-bit numbers to halve its size, so 5 of the 1,204 guesses differ from the
 PyTorch run. That is why the score is 0.2 points under the one saved during training
-(`results/8-final-ensemble-onnx.json` records the same check). Any other run can be scored the same way, for example
+(`python export_onnx.py --score` repeats this check against the saved PyTorch scores). Any other run can be scored the same way, for example
 `python evaluate.py 5-combined`.
 
 ## Reproduce the training (NVIDIA GPU)
@@ -99,7 +99,7 @@ Then:
 
 ```
 python run.py check              # 2-epoch pipeline check, about 1 minute
-python run.py 8-final-convnext   # the final model, about 50 minutes
+python run.py 7-final-convnext   # the final model, about 50 minutes
 python run.py --help             # every run name; their settings are in src/config.py
 ```
 
@@ -113,7 +113,7 @@ Each run writes `results/<run>.json` (scores, settings, learning curve) and `che
 | 4 | Does a batch of 24 beat 12? | `4-batch24-lr3e-03`, `4-batch24-lr6e-03` |
 | 5 | Can it stop memorising the training photos? | `5-label-smoothing`, `5-weight-decay`, `5-dropout`, `5-strong-augment`, `5-combined` |
 | 6 | Does the network design matter? | `6-resnet18-*`, `6-convnext-*` |
-| Final | Retrain the two tied networks on all photos | `8-final-convnext`, `8-final-resnet50` |
+| 7 | Retrain the two tied networks on all photos | `7-final-convnext`, `7-final-resnet50` |
 
 Runs ending in `-seed43` repeat a recipe with a second random seed, to measure how much scores move by chance.
 

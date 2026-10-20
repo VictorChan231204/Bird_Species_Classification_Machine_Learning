@@ -144,13 +144,13 @@
   "bytes": 22671617,
   "kind": "cnn"
  },
- "8-final-convnext": {
-  "file": "https://huggingface.co/VictorCKW/bird-species-models/resolve/main/8-final-convnext.onnx",
+ "7-final-convnext": {
+  "file": "https://huggingface.co/VictorCKW/bird-species-models/resolve/main/7-final-convnext.onnx",
   "bytes": 56590897,
   "kind": "cnn"
  },
- "8-final-resnet50": {
-  "file": "https://huggingface.co/VictorCKW/bird-species-models/resolve/main/8-final-resnet50.onnx",
+ "7-final-resnet50": {
+  "file": "https://huggingface.co/VictorCKW/bird-species-models/resolve/main/7-final-resnet50.onnx",
   "bytes": 48092002,
   "kind": "cnn"
  }

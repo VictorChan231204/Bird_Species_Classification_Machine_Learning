@@ -1,8 +1,8 @@
-"""Exports the two final networks to ONNX for the web app, and proves the exported ensemble scores like the original.
+"""Exports trained networks to ONNX for the web app, and proves the exported final model scores like the original.
 
 Usage, from the project root:
-    .venv/Scripts/python export_onnx.py           # export both networks, then score the test photos through ONNX
-    .venv/Scripts/python export_onnx.py --score   # skip the export; only score the files already in checkpoints/
+    .venv/Scripts/python export_onnx.py           # export the final model, then score the test photos through ONNX
+    .venv/Scripts/python export_onnx.py --score   # skip the export; only score the file already in checkpoints/
     .venv/Scripts/python export_onnx.py --all     # export every run the app offers, each checked on 100 test photos
 
 ONNX is a file format that any program can run, not only PyTorch. The web app runs these files in the visitor's
@@ -13,10 +13,9 @@ What goes in the file is more than the bare network (see BrowserModel): the file
 returns probabilities, so the browser only resizes, crops and divides by 255. The standardising (W5 s80) and the
 softmax (W3 s43) happen inside the file, exactly as in training and scoring.
 
-The proof: the test photos go through onnxruntime (the same engine as onnxruntime-web, on the processor), the two
-networks' probabilities are averaged like 8-final-ensemble (src/ensemble.py), and the script prints Top-1 and
-average per-class next to the PyTorch scores saved in checkpoints/<name>-probs.npz. It also counts the test photos
-whose guess changed. Writes results/8-final-ensemble-onnx.json.
+The proof: the test photos go through onnxruntime (the same engine as onnxruntime-web, on the processor), and the
+script prints Top-1 and average per-class next to the PyTorch scores saved in checkpoints/<name>-probs.npz. It also
+counts the test photos whose guess changed.
 """
 
 import argparse
@@ -33,13 +32,13 @@ from PIL import Image
 from torch import nn
 from torchvision import transforms
 
-from src.config import COMBINATIONS, EXPERIMENTS
+from src.config import EXPERIMENTS
 from src.data import DATA_DIR, IMAGENET_MEAN, IMAGENET_STD, RESIZE_RATIO, Sample, read_labels
 from src.models import build_model, set_head
 from src.svm import FEATURES_DIR
-from src.train import CHECKPOINT_DIR, RESULTS_DIR, summarise, tidy_json
+from src.train import CHECKPOINT_DIR, summarise
 
-ENSEMBLE = COMBINATIONS["8-final-ensemble"]  # the final model: ResNet-50 + ConvNeXt-Tiny, equal weights, no flip
+FINAL = "7-final-convnext"  # the final model: ConvNeXt-Tiny retrained on all 4,829 training photos
 
 
 class BrowserModel(nn.Module):
@@ -171,7 +170,7 @@ def export(name: str) -> None:
 
 def app_runs() -> list[str]:
     """Every run the web app can classify with: each trained run and SVM run with saved weights, except the
-    pipeline checks. The combinations (experiment 7 and 8-final-ensemble) need no file: the app averages members."""
+    pipeline checks."""
     return [name for name, cfg in EXPERIMENTS.items()
             if not name.startswith("check")
             and (CHECKPOINT_DIR / f"{name}.{'joblib' if cfg.svm_kernel else 'pt'}").exists()]
@@ -226,7 +225,7 @@ def onnx_probs(name: str) -> np.ndarray:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Export networks to ONNX and check them against Python's scores.")
-    parser.add_argument("--score", action="store_true", help="skip the export; score the existing final files")
+    parser.add_argument("--score", action="store_true", help="skip the export; score the existing final file")
     parser.add_argument("--all", action="store_true",
                         help="export every run the app offers (skips files already there), with a 100-photo check each")
     args = parser.parse_args()
@@ -237,25 +236,15 @@ def main() -> None:
             quick_check(name)
         return
     if not args.score:
-        for name in ENSEMBLE.members:
-            export(name)
+        export(FINAL)
 
     labels = np.array([label for _, label in read_labels(DATA_DIR / "test.txt")])
-    result = {"config": {"members": list(ENSEMBLE.members), "weights": "float16, computed in float32"}}
-    onnx_tables, torch_tables = [], []
-    for name in ENSEMBLE.members:
-        saved = np.load(CHECKPOINT_DIR / f"{name}-probs.npz")
-        assert np.array_equal(saved["test_labels"], labels), "the saved probabilities follow a different photo order"
-        onnx_tables.append(onnx_probs(name))
-        torch_tables.append(saved["test"])
-        result[name] = compare(onnx_tables[-1], torch_tables[-1], labels)
-    result["8-final-ensemble"] = compare(np.mean(onnx_tables, axis=0), np.mean(torch_tables, axis=0), labels)
-    for key in (*ENSEMBLE.members, "8-final-ensemble"):
-        r = result[key]
-        print(f"{key}: ONNX top-1 {r['onnx']['top1']:.4f} / per-class {r['onnx']['mean_per_class']:.4f}   "
-              f"PyTorch {r['pytorch']['top1']:.4f} / {r['pytorch']['mean_per_class']:.4f}   "
-              f"guesses changed {r['guesses_changed']}   largest probability gap {r['max_prob_gap']:.4f}")
-    (RESULTS_DIR / "8-final-ensemble-onnx.json").write_text(tidy_json(result) + "\n")
+    saved = np.load(CHECKPOINT_DIR / f"{FINAL}-probs.npz")
+    assert np.array_equal(saved["test_labels"], labels), "the saved probabilities follow a different photo order"
+    r = compare(onnx_probs(FINAL), saved["test"], labels)
+    print(f"{FINAL}: ONNX top-1 {r['onnx']['top1']:.4f} / per-class {r['onnx']['mean_per_class']:.4f}   "
+          f"PyTorch {r['pytorch']['top1']:.4f} / {r['pytorch']['mean_per_class']:.4f}   "
+          f"guesses changed {r['guesses_changed']}   largest probability gap {r['max_prob_gap']:.4f}")
 
 
 def compare(onnx_table: np.ndarray, torch_table: np.ndarray, labels: np.ndarray) -> dict:

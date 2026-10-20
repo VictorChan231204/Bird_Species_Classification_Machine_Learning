@@ -3,8 +3,8 @@
 run.py calls fit(cfg) once per experiment. fit() writes three files:
     results/<name>.json          - settings, the score of every epoch, the final validation and test scores (tracked in git)
     checkpoints/<name>.pt        - the trained weights, for the Gradio app and later analysis (gitignored, large)
-    checkpoints/<name>-probs.npz - the final model's class probabilities for every val and test photo, plain and
-                                   flipped, plus the true labels; later ensembles average these without re-running
+    checkpoints/<name>-probs.npz - the final model's class probabilities for every val and test photo, plus the true
+                                   labels; plot.py and make_app_data.py analyse these without re-running the network
 svm.py reuses set_seed, tidy_json and the folder paths; measure.py reuses make_optimizer.
 """
 
@@ -119,29 +119,17 @@ def train_one_epoch(model, loader, loss_fn, optimiser, cfg, device, step: int, t
 
 
 @torch.no_grad()  # no gradients needed when only scoring: faster and uses less GPU memory
-def predict(model, loader: DataLoader, cfg: RunConfig, device, flip: bool) -> dict[str, np.ndarray]:
+def predict(model, loader: DataLoader, cfg: RunConfig, device) -> dict[str, np.ndarray]:
     """Class probabilities for every photo in the loader.
-
-    Returns "probs" (softmax of the plain photo, one row of 200 per photo) and "labels". With flip=True also
-    "probs_flip": the average of the softmax of the photo and of its left-right mirror (flip).
-    A bird facing left is still the same bird, so two views give a slightly steadier guess for the cost of
-    a second forward pass (https://arxiv.org/abs/1409.1556, section 3.2).
-    """
+    Returns "probs" (softmax of each photo, one row of 200 per photo) and "labels"."""
     model.eval()  # dropout off; batch normalisation uses its stored averages
-    probs, probs_flip, labels = [], [], []
+    probs, labels = [], []
     for images, batch_labels in loader:
         images, batch_labels = to_device(images, batch_labels, device)
         with autocast(cfg, device):
-            plain = model(images).float().softmax(dim=1)  # softmax: scores -> probabilities that sum to 1 (W3 s43)
-            if flip:
-                mirrored = model(torch.flip(images, dims=[3])).float().softmax(dim=1)  # dim 3 = width: mirror
-                probs_flip.append(((plain + mirrored) / 2).cpu())
-        probs.append(plain.cpu())
+            probs.append(model(images).float().softmax(dim=1).cpu())  # softmax: scores -> probabilities that sum to 1 (W3 s43)
         labels.append(batch_labels.cpu())
-    out = {"probs": torch.cat(probs).numpy(), "labels": torch.cat(labels).numpy()}
-    if flip:
-        out["probs_flip"] = torch.cat(probs_flip).numpy()
-    return out
+    return {"probs": torch.cat(probs).numpy(), "labels": torch.cat(labels).numpy()}
 
 
 def summarise(probs: np.ndarray, labels: np.ndarray, per_class: bool) -> dict:
@@ -179,7 +167,7 @@ def fit(cfg: RunConfig) -> dict:
         train_loss, train_top1, step = train_one_epoch(
             model, train_loader, loss_fn, optimiser, cfg, device, step, total_steps, warmup_steps
         )
-        val_out = predict(model, val_loader, cfg, device, flip=False)  # plain only each epoch; flip at the end
+        val_out = predict(model, val_loader, cfg, device)
         val = summarise(val_out["probs"], val_out["labels"], per_class=False)
         history.append({
             "epoch": epoch,
@@ -206,10 +194,9 @@ def fit(cfg: RunConfig) -> dict:
         model.load_state_dict(best_weights)  # restore the best validation epoch
     final_epoch = best_epoch if best_weights is not None else len(history)
 
-    # Final scores, plain and with flip. The test photos are used here only, once per run,
-    # never to choose settings.
-    val_out = predict(model, val_loader, cfg, device, flip=True)
-    test_out = predict(model, test_loader, cfg, device, flip=True)
+    # Final scores. The test photos are used here only, once per run, never to choose settings.
+    val_out = predict(model, val_loader, cfg, device)
+    test_out = predict(model, test_loader, cfg, device)
     peak_vram_gb = round(torch.cuda.max_memory_allocated() / GB, 2) if device.type == "cuda" else 0.0
     result = {
         "config": asdict(cfg),
@@ -217,25 +204,21 @@ def fit(cfg: RunConfig) -> dict:
         "minutes": round((time.time() - start) / 60, 1),
         "peak_vram_gb": peak_vram_gb,  # most GPU memory the run's tensors held at once
         "val": summarise(val_out["probs"], val_out["labels"], per_class=False),
-        "val_flip": summarise(val_out["probs_flip"], val_out["labels"], per_class=False),
         "test": summarise(test_out["probs"], test_out["labels"], per_class=True),
-        "test_flip": summarise(test_out["probs_flip"], test_out["labels"], per_class=True),
         "history": history,
     }
     print(f"[{cfg.name}] final (epoch {final_epoch}): val top-1 {result['val']['top1']:.3f} "
-          f"(flip {result['val_flip']['top1']:.3f})  test top-1 {result['test']['top1']:.3f} "
-          f"(flip {result['test_flip']['top1']:.3f})  test mean per-class {result['test']['mean_per_class']:.3f}  "
+          f"test top-1 {result['test']['top1']:.3f}  test mean per-class {result['test']['mean_per_class']:.3f}  "
           f"peak VRAM {peak_vram_gb} GB")
 
     RESULTS_DIR.mkdir(exist_ok=True)
     CHECKPOINT_DIR.mkdir(exist_ok=True)
     (RESULTS_DIR / f"{cfg.name}.json").write_text(tidy_json(result) + "\n")  # tidy layout: see tidy_json() below
     torch.save(model.state_dict(), CHECKPOINT_DIR / f"{cfg.name}.pt")
-    # Probabilities of the final model, for ensembles: average two models' rows, then take the most likely species.
+    # Probabilities of the trained network, for the report's analysis (plot.py) and the app's confidence check.
     np.savez(
         CHECKPOINT_DIR / f"{cfg.name}-probs.npz",
-        val=val_out["probs"], val_flip=val_out["probs_flip"], test=test_out["probs"], test_flip=test_out["probs_flip"],
-        val_labels=val_out["labels"], test_labels=test_out["labels"],
+        val=val_out["probs"], test=test_out["probs"], val_labels=val_out["labels"], test_labels=test_out["labels"],
     )
     return result
 

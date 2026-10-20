@@ -12,7 +12,7 @@ probabilities) and writes:
     report/figures/confused-pairs.png           the species pairs the final model mixes up most: the wrong test photo
                                                 beside a training photo of the species it guessed
     report/figures/example-predictions.png      test photos with the final model's top 3 guesses
-    results/8-final-ensemble-analysis.json      the numbers behind the last two pictures
+    results/7-final-convnext-analysis.json      the numbers behind the last two pictures
 Confused pairs and example predictions are the qualitative results: not how often the final model is wrong, but where.
 Charts share one look (CHART_STYLE): the report's Calibri font, a solid hairline grid, and a colour-blind-safe palette
 (blue, orange, aqua, always in that order) checked with a palette validator.
@@ -31,13 +31,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 
-from src.config import COMBINATIONS
 from src.data import DATA_DIR, read_labels
-from src.ensemble import average_probs
+from src.train import CHECKPOINT_DIR
 
 ROOT = Path(__file__).resolve().parent
 FIGURES_DIR = ROOT / "report" / "figures"
-FINAL = "8-final-ensemble"  # the final model: ResNet-50 and ConvNeXt-Tiny, probabilities averaged
+FINAL = "7-final-convnext"  # the final model: ConvNeXt-Tiny retrained on all 4,829 training photos
 # Learning-curve panels: each compares two runs that differ in one thing only, so the panel shows one cause.
 CURVE_PANELS = {
     "Schedule: fixed rates against warm-up + cosine": {"2-control": "fixed rates", "3-adam-cosine": "warm-up + cosine"},
@@ -81,14 +80,20 @@ BASELINES = {"1-random-start": "no ImageNet weights", "1-frozen-new-layer": "cop
              "5-combined": "full recipe, fine-tuned"}
 RECIPE_PATH = {"2-control": "Adam, fixed rates", "3-adam-cosine": "+ warm-up and cosine",
                "3-sgd-lr3e-03": "SGD in place of Adam", "5-combined": "+ four regularisers",
-               "7-ensemble": "+ ConvNeXt-Tiny, averaged", "8-final-ensemble": "+ all 4,829 photos"}
+               "6-convnext-lr3e-03": "ConvNeXt-Tiny in place of ResNet-50", "7-final-convnext": "+ all 4,829 photos"}
 # Seed-noise chart: every recipe run on both seeds, in experiment order (seed 43 runs end in "-seed43").
 SEEDED = ["3-adam-cosine", "3-sgd-lr1e-03", "3-sgd-lr3e-03", "4-batch24-lr3e-03", "5-combined",
-          "6-convnext-lr3e-03", "7-ensemble"]
+          "6-convnext-lr3e-03"]
 # Rate-scan chart: experiment 6, the 5-combined recipe at three copied-layer rates (new layer 10x).
 RATE_SCAN = {"ResNet-18": "6-resnet18-lr{}", "ConvNeXt-Tiny": "6-convnext-lr{}"}
 RATES = {1e-3: "1e-03", 3e-3: "3e-03", 1e-2: "1e-02"}
 UNSURE_BELOW = 0.3  # the web app's "unsure" cut-off (make_app_data.py), marked on the confidence chart
+
+
+def final_test_probs() -> tuple[np.ndarray, np.ndarray]:
+    """The final model's saved test probabilities (1,204 photos x 200 species, written by train.fit) and true labels."""
+    saved = np.load(CHECKPOINT_DIR / f"{FINAL}-probs.npz")
+    return saved["test"], saved["test_labels"]
 
 
 def plot_progress() -> Path:
@@ -165,7 +170,7 @@ def plot_confidence() -> Path:
     """Reliability chart of the final model on the test photos. Photos are grouped by the top probability (0-10%,
     10-20%, ...); each bar is how often the first guess was right in that group. The grey line is where a perfectly
     calibrated model would sit (right 45% of the time when it says 45%). Bars above the line = underconfident."""
-    probs, y_true = average_probs(COMBINATIONS[FINAL].members, "test", flip=False)
+    probs, y_true = final_test_probs()
     top = probs.max(axis=1)  # how sure the model is about its first guess
     right = probs.argmax(axis=1) == y_true
     group = np.minimum((top * 10).astype(int), 9)  # 0 = 0-10%, ..., 9 = 90-100%
@@ -293,7 +298,7 @@ def plot_examples(examples, names) -> Path:
 def analyse_final() -> dict:
     """Find the final model's most confused pairs and example predictions from its saved test probabilities."""
     names, photos = species_names(), first_training_photo()
-    probs, y_true = average_probs(COMBINATIONS[FINAL].members, "test", flip=False)  # same average as run.py
+    probs, y_true = final_test_probs()
     files = [file_name for file_name, _ in read_labels(DATA_DIR / "test.txt")]  # same order as the saved rows
     y_pred = probs.argmax(axis=1)  # the first guess: the species with the highest probability
     wrong = np.flatnonzero(y_pred != y_true)
@@ -319,7 +324,7 @@ def analyse_final() -> dict:
     per_species = [(s, float((y_pred[y_true == s] == s).mean())) for s in range(len(names))]
     result = {
         "run": FINAL,
-        "test_top1": round(1 - len(wrong) / len(files), 4),  # must match results/8-final-ensemble.json
+        "test_top1": round(1 - len(wrong) / len(files), 4),  # must match results/7-final-convnext.json
         "test_top3": round(float(np.mean([y_true[i] in ranked[i, :3] for i in range(len(files))])), 4),
         "test_top5": round(float(np.mean([y_true[i] in ranked[i, :5] for i in range(len(files))])), 4),
         "mistakes": int(len(wrong)),

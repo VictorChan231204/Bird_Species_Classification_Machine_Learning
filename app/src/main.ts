@@ -1,7 +1,7 @@
 /**
  * The page's behaviour: show a photo, run the chosen model on it, and write its answer onto the card.
  *
- * Flow: on load the first example photo shows at once and the final model (8-final-convnext) starts downloading.
+ * Flow: on load the first example photo shows at once and the final model (7-final-convnext) starts downloading.
  * When it is ready, the photo is classified. Every later photo (an example click, a chosen file, a drop or a paste)
  * is classified straight away. Choosing another model in the picker downloads that model, then classifies the photo
  * on show again. The "Training" section shows the chosen run's chart; its small charts can switch the model too.

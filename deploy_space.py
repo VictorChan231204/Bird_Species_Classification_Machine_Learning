@@ -33,7 +33,7 @@ tags:
 
 ONNX files for the bird species classifier at https://huggingface.co/spaces/VictorCKW/bird-species-classifier
 (COS30082 Assignment 1, CUB-200, 200 species). One file per training run; the final model is
-`8-final-convnext.onnx` (ConvNeXt-Tiny). Input: one photo, shape (1, 3, 448, 448), pixel values 0-1.
+`7-final-convnext.onnx` (ConvNeXt-Tiny). Input: one photo, shape (1, 3, 448, 448), pixel values 0-1.
 Output: 200 probabilities, or 200 SVM scores for the `1-frozen-svm-*` runs. Weights are stored as float16.
 """
 
@@ -56,8 +56,9 @@ through onnxruntime-web. Every other run of the experiments can be picked too, d
 
 
 def upload_models() -> None:
-    """Upload every checkpoints/<run>.onnx to the public model repo, in one commit. Files already there with the
-    same content are skipped by the Hub, so a rerun only sends what changed."""
+    """Upload every checkpoints/<run>.onnx to the public model repo, in one commit, and delete remote .onnx files
+    with no local copy (renamed or removed runs). Files already there with the same content are skipped by the Hub,
+    so a rerun only sends what changed."""
     files = sorted(CHECKPOINTS.glob("*.onnx"))
     if not files:
         raise SystemExit("checkpoints/ has no .onnx files: run export_onnx.py --all first.")
@@ -65,6 +66,9 @@ def upload_models() -> None:
     api.create_repo(MODEL_REPO_ID, repo_type="model", private=False, exist_ok=True)  # public: the site downloads them
     ops = [CommitOperationAdd(path_in_repo=f.name, path_or_fileobj=str(f)) for f in files]
     ops.append(CommitOperationAdd(path_in_repo="README.md", path_or_fileobj=MODEL_README.encode("utf-8")))
+    local = {f.name for f in files}
+    ops += [CommitOperationDelete(path_in_repo=name) for name in api.list_repo_files(MODEL_REPO_ID, repo_type="model")
+            if name.endswith(".onnx") and name not in local]
     info = api.create_commit(MODEL_REPO_ID, operations=ops, repo_type="model", commit_message="Upload ONNX networks")
     print(f"Committed {len(files)} networks:", info.commit_url)
 

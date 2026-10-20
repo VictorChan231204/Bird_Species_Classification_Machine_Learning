@@ -27,8 +27,6 @@
    "minutes": 15.1,
    "peakGpuGb": 0.4
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0601,
@@ -124,8 +122,6 @@
    "minutes": 15.3,
    "peakGpuGb": 0.4
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0472,
@@ -221,8 +217,6 @@
    "minutes": 10.0,
    "peakGpuGb": null
   },
-  "members": null,
-  "flip": null,
   "curve": null
  },
  "1-frozen-svm-rbf": {
@@ -253,8 +247,6 @@
    "minutes": 25.9,
    "peakGpuGb": null
   },
-  "members": null,
-  "flip": null,
   "curve": null
  },
  "1-random-start": {
@@ -285,8 +277,6 @@
    "minutes": 34.5,
    "peakGpuGb": 2.33
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0057,
@@ -382,8 +372,6 @@
    "minutes": 35.3,
    "peakGpuGb": 2.42
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.1802,
@@ -479,8 +467,6 @@
    "minutes": 35.3,
    "peakGpuGb": 2.42
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0851,
@@ -576,8 +562,6 @@
    "minutes": 36.5,
    "peakGpuGb": 2.42
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0849,
@@ -673,8 +657,6 @@
    "minutes": 33.3,
    "peakGpuGb": 2.33
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.1343,
@@ -770,8 +752,6 @@
    "minutes": 33.4,
    "peakGpuGb": 2.33
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0221,
@@ -867,8 +847,6 @@
    "minutes": 33.7,
    "peakGpuGb": 2.33
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0211,
@@ -964,8 +942,6 @@
    "minutes": 33.3,
    "peakGpuGb": 2.33
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0509,
@@ -1061,8 +1037,6 @@
    "minutes": 35.2,
    "peakGpuGb": 2.33
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0549,
@@ -1158,8 +1132,6 @@
    "minutes": 34.0,
    "peakGpuGb": 4.32
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0365,
@@ -1255,8 +1227,6 @@
    "minutes": 34.0,
    "peakGpuGb": 4.32
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0328,
@@ -1352,8 +1322,6 @@
    "minutes": 33.7,
    "peakGpuGb": 4.32
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0653,
@@ -1449,8 +1417,6 @@
    "minutes": 34.5,
    "peakGpuGb": 2.33
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0422,
@@ -1546,8 +1512,6 @@
    "minutes": 35.6,
    "peakGpuGb": 2.33
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0407,
@@ -1643,8 +1607,6 @@
    "minutes": 35.1,
    "peakGpuGb": 2.33
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0511,
@@ -1740,8 +1702,6 @@
    "minutes": 33.1,
    "peakGpuGb": 2.33
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0486,
@@ -1837,8 +1797,6 @@
    "minutes": 34.0,
    "peakGpuGb": 2.33
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0449,
@@ -1934,8 +1892,6 @@
    "minutes": 33.4,
    "peakGpuGb": 2.33
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0551,
@@ -2031,8 +1987,6 @@
    "minutes": 40.3,
    "peakGpuGb": 3.19
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0062,
@@ -2128,8 +2082,6 @@
    "minutes": 41.3,
    "peakGpuGb": 3.19
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.034,
@@ -2225,8 +2177,6 @@
    "minutes": 40.5,
    "peakGpuGb": 3.19
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0074,
@@ -2322,8 +2272,6 @@
    "minutes": 42.3,
    "peakGpuGb": 3.19
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0117,
@@ -2419,8 +2367,6 @@
    "minutes": 14.5,
    "peakGpuGb": 0.73
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0208,
@@ -2516,8 +2462,6 @@
    "minutes": 15.0,
    "peakGpuGb": 0.73
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0218,
@@ -2613,8 +2557,6 @@
    "minutes": 15.1,
    "peakGpuGb": 0.73
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0417,
@@ -2682,7 +2624,7 @@
    ]
   }
  },
- "8-final-convnext": {
+ "7-final-convnext": {
   "val": null,
   "test": 0.892,
   "perClass": 0.89,
@@ -2710,8 +2652,6 @@
    "minutes": 47.6,
    "peakGpuGb": 3.19
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0603,
@@ -2748,7 +2688,7 @@
    "val": null
   }
  },
- "8-final-resnet50": {
+ "7-final-resnet50": {
   "val": null,
   "test": 0.8754,
   "perClass": 0.8738,
@@ -2776,8 +2716,6 @@
    "minutes": 40.5,
    "peakGpuGb": 2.33
   },
-  "members": null,
-  "flip": null,
   "curve": {
    "train": [
     0.0503,

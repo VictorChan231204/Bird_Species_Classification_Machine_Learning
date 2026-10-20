@@ -1,8 +1,8 @@
 """Frozen features + SVM: SVMs decide the species from a frozen pretrained network's features.
 
 run.py calls fit_svm(cfg) in place of train.fit(cfg) when cfg.svm_kernel is set. One run:
-    1. extract_features - the frozen ImageNet network turns every photo (and its mirror, for validation and test) into
-       a feature list once: 512 numbers (ResNet-18), 2,048 (ResNet-50) or 768 (ConvNeXt-Tiny), cached in features/
+    1. extract_features - the frozen ImageNet network turns every photo into a feature list once:
+       512 numbers (ResNet-18), 2,048 (ResNet-50) or 768 (ConvNeXt-Tiny), cached in features/
     2. for every C in cfg.svm_c_values: standardise the features, fit one SVM per species, score the validation photos
     3. keep the C with the best validation Top-1, then score the test photos once
     4. write results/<name>.json in the same layout as train.py, with "c_search" in place of the per-epoch "history"
@@ -33,27 +33,21 @@ FEATURES_DIR = ROOT / "features"
 
 
 @torch.no_grad()  # nothing learns here, so no gradients are needed
-def features_of(network: nn.Module, loader, cfg: RunConfig, device, flip: bool) -> dict[str, np.ndarray]:
+def features_of(network: nn.Module, loader, cfg: RunConfig, device) -> dict[str, np.ndarray]:
     """Run every photo in the loader through the frozen network.
-    Returns "x" (one row of features per photo), "y" (the species of each row) and, with flip=True,
-    "x_flip" (the features of each photo's left-right mirror, for flip)."""
+    Returns "x" (one row of features per photo) and "y" (the species of each row)."""
     network.eval()  # batch normalisation uses its stored ImageNet averages
-    x, x_flip, y = [], [], []
+    x, y = [], []
     for images, labels in loader:
         images, labels = to_device(images, labels, device)
         with autocast(cfg, device):
             x.append(network(images).float().cpu().numpy())  # features, copied back from the GPU as float32
-            if flip:
-                x_flip.append(network(torch.flip(images, dims=[3])).float().cpu().numpy())  # dim 3 = width: mirror
         y.append(labels.cpu().numpy())
-    out = {"x": np.concatenate(x), "y": np.concatenate(y)}
-    if flip:
-        out["x_flip"] = np.concatenate(x_flip)
-    return out
+    return {"x": np.concatenate(x), "y": np.concatenate(y)}
 
 
 def extract_features(cfg: RunConfig) -> dict[str, np.ndarray]:
-    """The features and species numbers of the train, val and test photos: x_train, y_train, x_val, x_val_flip, ...
+    """The features and species numbers of the train, val and test photos: x_train, y_train, x_val, ...
     The first run computes them on the GPU (a few minutes); later runs read the cache file in a second."""
     # The seed decides which photos are in train and val; the size changes the features.
     cache = FEATURES_DIR / f"{cfg.arch}-{cfg.image_size}-seed{cfg.seed}.npz"
@@ -68,10 +62,8 @@ def extract_features(cfg: RunConfig) -> dict[str, np.ndarray]:
 
     data = {}
     for split, loader in zip(("train", "val", "test"), make_loaders(cfg)):
-        out = features_of(network, loader, cfg, device, flip=split != "train")  # train photos need no mirror
+        out = features_of(network, loader, cfg, device)
         data[f"x_{split}"], data[f"y_{split}"] = out["x"], out["y"]
-        if "x_flip" in out:
-            data[f"x_{split}_flip"] = out["x_flip"]
     FEATURES_DIR.mkdir(exist_ok=True)
     np.savez(cache, **data)
     return data
@@ -92,13 +84,6 @@ def build_svm(kernel: str, c: float) -> Pipeline:
         StandardScaler(),
         OneVsRestClassifier(SVC(kernel=kernel, C=c, gamma="scale"), n_jobs=-1),
     )
-
-
-def flip_predict(svm: Pipeline, x: np.ndarray, x_flip: np.ndarray) -> np.ndarray:
-    """Flip for the SVM: average each species' SVM score (signed distance from its fence) over the
-    photo and its mirror, then pick the species with the highest average. An SVM gives scores, not
-    probabilities, so its scores are averaged instead of softmax outputs."""
-    return ((svm.decision_function(x) + svm.decision_function(x_flip)) / 2).argmax(axis=1)
 
 
 def summarise(y_true: np.ndarray, y_pred: np.ndarray, per_class: bool) -> dict:
@@ -136,20 +121,18 @@ def fit_svm(cfg: RunConfig) -> dict:
         if best is None or val["top1"] > best[1]:  # on a tie the smaller, less strict C stays
             best = (c, val["top1"], svm)
 
-    # Final scores, plain and with flip. The test photos are used here only, once per run, never to choose C.
+    # Final scores. The test photos are used here only, once per run, never to choose C.
     best_c, _, svm = best
     result = {
         "config": asdict(cfg),
         "best_c": best_c,
         "minutes": round((time.time() - start) / 60, 1),
         "val": summarise(data["y_val"], svm.predict(data["x_val"]), per_class=False),
-        "val_flip": summarise(data["y_val"], flip_predict(svm, data["x_val"], data["x_val_flip"]), per_class=False),
         "test": summarise(data["y_test"], svm.predict(data["x_test"]), per_class=True),
-        "test_flip": summarise(data["y_test"], flip_predict(svm, data["x_test"], data["x_test_flip"]), per_class=True),
         "c_search": c_search,
     }
     print(f"[{cfg.name}] final (C={best_c:g}): val top-1 {result['val']['top1']:.3f}  "
-          f"test top-1 {result['test']['top1']:.3f} (flip {result['test_flip']['top1']:.3f})  "
+          f"test top-1 {result['test']['top1']:.3f}  "
           f"test mean per-class {result['test']['mean_per_class']:.3f}")
 
     RESULTS_DIR.mkdir(exist_ok=True)

@@ -1,7 +1,7 @@
 """Scores a trained model on the 1,204 test photos without training it first, on any computer (no GPU needed).
 
 Usage, from the project root:
-    python evaluate.py                      # the final model, 8-final-convnext (ConvNeXt-Tiny), a few minutes
+    python evaluate.py                      # the final model, 7-final-convnext (ConvNeXt-Tiny), a few minutes
     python evaluate.py 5-combined           # any other run, by its name in src/config.py
 
 The trained weights are not in this repository (1.4 GB). Every run was exported to ONNX (export_onnx.py) and
@@ -48,7 +48,7 @@ def fetch(name: str) -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Score one trained run on the test photos (processor only).")
-    parser.add_argument("run", nargs="?", default="8-final-convnext", help="run name (default: the final model)")
+    parser.add_argument("run", nargs="?", default="7-final-convnext", help="run name (default: the final model)")
     name = parser.parse_args().run
 
     test_txt = DATA_DIR / "test.txt"

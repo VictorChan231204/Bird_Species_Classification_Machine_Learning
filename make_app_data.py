@@ -41,7 +41,7 @@ EXAMPLES = (
     160,  # hard: American Crow, guessed Fish Crow (two all-black crows that differ mainly by voice)
 )
 MODEL_BASE = "https://huggingface.co/VictorCKW/bird-species-models/resolve/main"  # where the site downloads networks
-FINAL = "8-final-convnext"  # the final model: ConvNeXt-Tiny retrained on all 4,829 training photos
+FINAL = "7-final-convnext"  # the final model: ConvNeXt-Tiny retrained on all 4,829 training photos
 UNSURE_BELOW = 0.3  # the app calls an answer "low confidence" when its top probability is under this
 
 
@@ -112,36 +112,27 @@ def settings(config: dict, result: dict) -> dict:
 
 
 def all_scores() -> dict[str, dict]:
-    """Every run in results/, keyed by run name: scores, settings, members and learning curve.
+    """Every run in results/, keyed by run name: scores, settings and learning curve.
 
-    val: validation Top-1, or None when the run trained on the validation photos (experiment 8), because then
+    val: validation Top-1, or None when the run trained on the validation photos (experiment 7), because then
          the score only shows memory. test, perClass: test Top-1 and average per-class accuracy.
-    settings: see settings(); None for a combination (experiment 7 and 8-final-ensemble), which trains nothing.
-    members, flip: the runs a combination averages, and whether it adds mirror images; None for a trained run.
+    settings: see settings().
     curve: training and validation Top-1 per epoch (val None without honest validation photos); None when
-           nothing trained epoch by epoch (combinations, SVMs).
-    The ONNX check file has a different layout and is skipped. So are the averaging runs (experiment 7 and
-    8-final-ensemble), which the app does not show, and the pipeline checks (check, check-svm)."""
+           nothing trained epoch by epoch (SVMs).
+    Files without test scores and the pipeline checks (check, check-svm) are skipped."""
     raw = {path.stem: json.loads(path.read_text()) for path in sorted(RESULTS_DIR.glob("*.json"))}
     raw = {name: result for name, result in raw.items()
-           if "test" in result and "members" not in result["config"] and not name.startswith("check")}
-
-    def trained_on_val(name: str) -> bool:
-        config = raw[name]["config"]
-        # A combination saw the validation photos if any of its members did.
-        return any(trained_on_val(m) for m in config["members"]) if "members" in config else config["train_on_val"]
+           if "test" in result and not name.startswith("check")}
 
     scores = {}
     for name, result in raw.items():
         config, history = result["config"], result.get("history") or []
-        honest_val = not trained_on_val(name)
+        honest_val = not config["train_on_val"]
         scores[name] = {
             "val": result["val"]["top1"] if honest_val else None,
             "test": result["test"]["top1"],
             "perClass": result["test"]["mean_per_class"],
-            "settings": None if "members" in config else settings(config, result),
-            "members": config.get("members"),
-            "flip": config.get("flip"),  # combinations only: True when each photo is also scored as its mirror image
+            "settings": settings(config, result),
             "curve": {
                 "train": [round(epoch["train_top1"], 4) for epoch in history],
                 "val": [round(epoch["val_top1"], 4) for epoch in history] if honest_val else None,
