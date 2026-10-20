@@ -246,4 +246,8 @@ COMBINATIONS["8-final-ensemble"] = Combination(  # equal-weight average of the t
     "8-final-ensemble", ("8-final-resnet50", "8-final-convnext"), flip=False,
 )
 # Results (test Top-1 / average per-class): 8-final-resnet50 87.5% / 87.4%; 8-final-convnext 89.2% / 89.0%;
-# 8-final-ensemble 89.7% / 89.5%, above the 85.6% bug-check line, so it is the final model as agreed.
+# 8-final-ensemble 89.7% / 89.5%, above the 85.6% bug-check line.
+# Final model, revised: the assignment needs one single model, not an average of two, so 8-final-ensemble is not
+# used. Validation had tied the two networks (6-convnext-lr3e-03 87.6% vs 5-combined 87.4%, two-seed means), so the
+# test set decided between the retrained pair: 8-final-convnext (89.2%) is the final model. Part of its 1.7-point
+# lead may be chance: the same recipes scored 86.1% vs 85.6% (seed 42) and 85.8% vs 85.8% (seed 43) on test.

@@ -1,0 +1,157 @@
+{
+ "1-frozen-new-layer-plain": {
+  "file": "models/1-frozen-new-layer-plain.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "1-frozen-new-layer": {
+  "file": "models/1-frozen-new-layer.onnx",
+  "bytes": 48092753,
+  "kind": "cnn"
+ },
+ "1-frozen-svm-linear": {
+  "file": "models/1-frozen-svm-linear.onnx",
+  "bytes": 48094147,
+  "kind": "svm"
+ },
+ "1-frozen-svm-rbf": {
+  "file": "models/1-frozen-svm-rbf.onnx",
+  "bytes": 65403667,
+  "kind": "svm"
+ },
+ "1-random-start": {
+  "file": "models/1-random-start.onnx",
+  "bytes": 48092753,
+  "kind": "cnn"
+ },
+ "2-control": {
+  "file": "models/2-control.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "3-adam-cosine-seed43": {
+  "file": "models/3-adam-cosine-seed43.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "3-adam-cosine": {
+  "file": "models/3-adam-cosine.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "3-sgd-lr1e-02": {
+  "file": "models/3-sgd-lr1e-02.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "3-sgd-lr1e-03-seed43": {
+  "file": "models/3-sgd-lr1e-03-seed43.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "3-sgd-lr1e-03": {
+  "file": "models/3-sgd-lr1e-03.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "3-sgd-lr3e-03-seed43": {
+  "file": "models/3-sgd-lr3e-03-seed43.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "3-sgd-lr3e-03": {
+  "file": "models/3-sgd-lr3e-03.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "4-batch24-lr3e-03-seed43": {
+  "file": "models/4-batch24-lr3e-03-seed43.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "4-batch24-lr3e-03": {
+  "file": "models/4-batch24-lr3e-03.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "4-batch24-lr6e-03": {
+  "file": "models/4-batch24-lr6e-03.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "5-combined-seed43": {
+  "file": "models/5-combined-seed43.onnx",
+  "bytes": 48092753,
+  "kind": "cnn"
+ },
+ "5-combined": {
+  "file": "models/5-combined.onnx",
+  "bytes": 48092753,
+  "kind": "cnn"
+ },
+ "5-dropout": {
+  "file": "models/5-dropout.onnx",
+  "bytes": 48092753,
+  "kind": "cnn"
+ },
+ "5-label-smoothing": {
+  "file": "models/5-label-smoothing.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "5-strong-augment": {
+  "file": "models/5-strong-augment.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "5-weight-decay": {
+  "file": "models/5-weight-decay.onnx",
+  "bytes": 48092420,
+  "kind": "cnn"
+ },
+ "6-convnext-lr1e-02": {
+  "file": "models/6-convnext-lr1e-02.onnx",
+  "bytes": 56592247,
+  "kind": "cnn"
+ },
+ "6-convnext-lr1e-03": {
+  "file": "models/6-convnext-lr1e-03.onnx",
+  "bytes": 56592247,
+  "kind": "cnn"
+ },
+ "6-convnext-lr3e-03-seed43": {
+  "file": "models/6-convnext-lr3e-03-seed43.onnx",
+  "bytes": 56592247,
+  "kind": "cnn"
+ },
+ "6-convnext-lr3e-03": {
+  "file": "models/6-convnext-lr3e-03.onnx",
+  "bytes": 56592247,
+  "kind": "cnn"
+ },
+ "6-resnet18-lr1e-02": {
+  "file": "models/6-resnet18-lr1e-02.onnx",
+  "bytes": 22671617,
+  "kind": "cnn"
+ },
+ "6-resnet18-lr1e-03": {
+  "file": "models/6-resnet18-lr1e-03.onnx",
+  "bytes": 22671617,
+  "kind": "cnn"
+ },
+ "6-resnet18-lr3e-03": {
+  "file": "models/6-resnet18-lr3e-03.onnx",
+  "bytes": 22671617,
+  "kind": "cnn"
+ },
+ "8-final-convnext": {
+  "file": "models/8-final-convnext.onnx",
+  "bytes": 56590897,
+  "kind": "cnn"
+ },
+ "8-final-resnet50": {
+  "file": "models/8-final-resnet50.onnx",
+  "bytes": 48092002,
+  "kind": "cnn"
+ }
+}

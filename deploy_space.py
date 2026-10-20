@@ -26,8 +26,8 @@ pinned: false
 short_description: CNN that names 200 bird species, run in your browser
 ---
 
-COS30082 Assignment 1. Two CNNs (ResNet-50 and ConvNeXt-Tiny) run in the visitor's browser
-through onnxruntime-web; the page averages their probabilities.
+COS30082 Assignment 1. The final model, a ConvNeXt-Tiny CNN, runs in the visitor's browser
+through onnxruntime-web. Every other run of the experiments can be picked too, down to the baselines.
 """
 
 

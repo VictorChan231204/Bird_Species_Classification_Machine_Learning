@@ -4,39 +4,39 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light" />
-    <meta name="description" content="Identify 200 bird species from a photo. An ensemble of two CNNs, ResNet-50 and ConvNeXt-Tiny, runs in your browser." />
+    <meta name="description" content="Identify 200 bird species from a photo with a ConvNeXt-Tiny CNN that runs in your browser, or try any of the 31 models trained along the way." />
     <title>Bird Species Classification</title>
   </head>
   <body>
     <!--
-      LAYOUT: a classifier page, top to bottom: title, byline and task tags; the photo with "Choose a photo" and the
-        example photos (left) beside the Ensemble's answer card and the "Member models" table (right); the model card;
-        then the experiments 1 to 8 that led to the final model.
-      LOOK: a light field-guide page: warm off-white background, white panels with borders, dark text, one forest-green
-        accent for buttons, tags and bars (style.css).
-      NAMES: "Ensemble" is the final model: the average of ResNet-50 and ConvNeXt-Tiny. Its test scores (89.7% Top-1)
-        belong to the Ensemble only; each member network's own score is shown beside it.
+      LAYOUT: a classifier demo page, top to bottom: title and byline; the demo (model picker, photo, "Choose a
+        photo" and example photos on the left, the prediction on the right); how the final model works; the key
+        decisions of the experiments; every run's learning curve; the test results and limitations.
+      LOOK: neutral white and grey, thin rules, one slate-blue accent (style.css).
+      NAMES: the final model is ConvNeXt-Tiny, run 8-final-convnext. Every other run can be picked in the demo.
     -->
-    <main>
-      <!-- Title, byline and what kind of model this is. -->
-      <header class="hero">
-        <h1 class="hero-title">Bird Species Classification</h1>
-        <p class="hero-byline">Victor Chan · 104384986 · COS30082 Assignment 1</p>
-        <ul class="tags" aria-label="Model tags">
-          <li>Image classification</li>
-          <li>200 bird species</li>
-          <li>CNN</li>
-          <li>Ensemble</li>
-          <li>CUB-200</li>
-          <li>PyTorch</li>
-          <li>ONNX in the browser</li>
-        </ul>
-      </header>
+    <header class="masthead">
+      <div class="wrap">
+        <h1>Bird Species Classification</h1>
+        <p class="byline">Victor Chan · 104384986 · COS30082 Assignment 1</p>
+        <p class="lede">
+          Upload a bird photo and a CNN names its species, out of 200 (CUB-200). The final model is ConvNeXt-Tiny.
+          Every other model trained along the way can be picked too, down to the baselines. All of them run in your
+          browser, so the photo never leaves your device.
+        </p>
+      </div>
+    </header>
 
-      <!-- The demo: the photo and how to choose one (left), the answer and each member network's vote (right). -->
+    <main class="wrap">
+      <!-- The demo: the model picker, the photo and how to choose one (left), the prediction (right). -->
       <section class="demo" id="demo" aria-label="Identify a bird">
-        <div class="input">
-          <figure class="artwork">
+        <div class="panel input">
+          <div class="picker">
+            <label for="model">Model</label>
+            <select id="model"></select><!-- main.ts fills it from GROUPS in experiments.ts -->
+          </div>
+
+          <figure class="stage">
             <img id="photo" alt="" hidden /><!-- main.ts sets the photo and shows it -->
           </figure>
 
@@ -45,144 +45,132 @@
               <input type="file" id="file-input" accept="image/*" class="visually-hidden" />
               Choose a photo
             </label>
-            <p class="actions-hint">or drop or paste one anywhere. It knows 200 species, mostly North American.</p>
+            <p class="hint">or drop or paste an image anywhere on the page.</p>
           </div>
 
           <nav class="examples" aria-label="Example photos">
-            <p class="examples-caption">Or try a test photo, drawn at random</p>
+            <p class="caption">Picked from the test set. The last two are hard cases.</p>
             <ul id="examples"></ul>
           </nav>
         </div>
 
-        <div class="output">
-          <!-- The Ensemble's answer: species, probability, top 5, then the credit line. -->
-          <article class="label" id="label" aria-live="polite" aria-labelledby="label-title">
-            <header class="label-head">
-              <div>
-                <h2 class="label-title" id="label-title">Ensemble</h2>
-                <p class="label-what">ResNet-50 and ConvNeXt-Tiny, averaged</p>
-              </div>
-              <p class="label-score" id="label-score"></p><!-- main.ts writes the Ensemble's test Top-1 -->
-            </header>
-            <p class="label-species" id="label-species">Loading the networks</p>
-            <p class="label-confidence" id="label-confidence"></p>
+        <!-- The prediction: species, probability, top 5, then where the photo came from and any caution. -->
+        <article class="panel output" id="label" aria-live="polite" aria-labelledby="label-title">
+          <header class="output-head">
+            <h2 id="label-title">Prediction</h2>
+            <p class="output-score" id="label-score"></p><!-- main.ts writes the chosen model's name and test Top-1 -->
+          </header>
 
-            <div class="label-progress" id="label-progress">
-              <div class="bar"><span id="progress-fill" style="transform:scaleX(0)"></span></div>
-              <p id="progress-text">Starting the download</p>
-            </div>
+          <p class="species" id="label-species">Loading the model</p>
+          <p class="confidence" id="label-confidence"></p>
 
-            <ol class="top5" id="top5" aria-label="The Ensemble's five most likely species"></ol>
+          <div class="progress" id="label-progress">
+            <div class="bar"><span id="progress-fill" style="transform:scaleX(0)"></span></div>
+            <p id="progress-text">Starting the download</p>
+          </div>
 
-            <!-- The credit line at the foot of the card: where the photo came from, the test set's answer, any caution. -->
-            <div class="label-foot">
-              <p class="label-source" id="label-source">Example photo</p>
-              <p class="label-truth" id="label-truth" hidden></p>
-              <p class="label-note" id="label-note" hidden></p>
-            </div>
-          </article>
+          <ol class="top5" id="top5" aria-label="The five most likely species"></ol>
 
-          <!-- Each member network's vote for this photo, next to its own test score; the Ensemble's row closes the table. -->
-          <section class="members" aria-labelledby="members-title">
-            <h2 class="members-title" id="members-title">Member models</h2>
-            <table class="members-table">
-              <thead>
-                <tr>
-                  <th scope="col">Network</th>
-                  <th scope="col">This photo</th>
-                  <th scope="col" class="num">Test Top-1</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <th scope="row">ResNet-50</th>
-                  <td><span id="vote-resnet">Waiting</span> <span class="vote-value" id="vote-resnet-value"></span></td>
-                  <td class="num" id="score-resnet"></td>
-                </tr>
-                <tr>
-                  <th scope="row">ConvNeXt-Tiny</th>
-                  <td><span id="vote-convnext">Waiting</span> <span class="vote-value" id="vote-convnext-value"></span></td>
-                  <td class="num" id="score-convnext"></td>
-                </tr>
-                <tr class="is-ensemble">
-                  <th scope="row">Ensemble</th>
-                  <td><span id="vote-ensemble">Waiting</span> <span class="vote-value" id="vote-ensemble-value"></span></td>
-                  <td class="num" id="score-ensemble"></td>
-                </tr>
-              </tbody>
-            </table>
-            <p class="members-note" id="members-note"></p>
-          </section>
+          <!-- Where the photo came from, the test set's answer for an example, and any caution. -->
+          <div class="output-foot">
+            <p class="source" id="label-source">Example photo</p>
+            <p class="truth" id="label-truth" hidden></p>
+            <p class="note" id="label-note" hidden></p>
+          </div>
+        </article>
+      </section>
+
+      <!-- How the final model turns one photo into one answer, as a small left-to-right diagram. -->
+      <section class="section" aria-labelledby="how-title">
+        <h2 id="how-title">How it works</h2>
+        <ol class="flow" aria-label="From photo to answer">
+          <li class="flow-step">
+            <span class="flow-name">Photo</span>
+            <span class="flow-note">Short side resized to 512 px, middle 448 × 448 kept</span>
+          </li>
+          <li class="flow-step">
+            <span class="flow-name">ConvNeXt-Tiny</span>
+            <span class="flow-note">A CNN with 28 million weights: layers of filters find edges, then textures, then bird parts</span>
+          </li>
+          <li class="flow-step">
+            <span class="flow-name">200 probabilities</span>
+            <span class="flow-note">Softmax turns its 200 scores into probabilities that sum to 100%</span>
+          </li>
+          <li class="flow-step flow-end">
+            <span class="flow-name">Answer</span>
+            <span class="flow-note">The species with the highest probability</span>
+          </li>
+        </ol>
+        <div class="explain">
+          <p>
+            <strong>Where its knowledge comes from.</strong> ConvNeXt-Tiny first learned general shapes and textures
+            from 1.28 million ImageNet photos. It was then fine-tuned on the 4,829 bird training photos for 30 epochs:
+            every layer learned, the copied layers at a learning rate 10 times smaller than the new last layer, so they
+            kept most of what they knew.
+          </p>
+          <p>
+            <strong>How it avoids memorising.</strong> With about 24 photos per species, a network can memorise the
+            training photos instead of learning the birds. Four tools work against that, together: strong
+            augmentation (random crops, turns and colour changes), label smoothing, weight decay and dropout.
+          </p>
+          <p>
+            <strong>Why ConvNeXt-Tiny.</strong> <span id="why-final"></span>
+          </p>
         </div>
       </section>
 
-      <!-- The model card: what the final model is, what it learned from, how it scores, and where it fails. -->
-      <section class="card-section" aria-labelledby="card-title">
-        <h2 class="section-title" id="card-title">Model card</h2>
-        <div class="card-grid">
-          <section class="card-part card-details">
-            <h3>Details</h3>
-            <dl class="facts">
-              <div><dt>Model</dt><dd>Ensemble of two CNNs. Each gives a probability for all 200 species; the two lists are averaged with equal weight, and the highest is the answer.</dd></div>
-              <div><dt>Networks</dt><dd>ResNet-50 (23.9 million weights) and ConvNeXt-Tiny (28.0 million weights), both starting from torchvision's ImageNet-1k weights.</dd></div>
-              <div><dt>Input</dt><dd>One colour photo. The short side is resized to 512 pixels and the middle 448 × 448 square is kept.</dd></div>
-              <div><dt>Output</dt><dd>200 probabilities, one per species.</dd></div>
-              <div><dt>Training</dt><dd>Every layer fine-tuned for 30 epochs: SGD with momentum 0.9, warm-up then cosine learning rate, label smoothing 0.1, weight decay, dropout 0.3, strong augmentation.</dd></div>
-              <div><dt>Runs in</dt><dd>This browser, with onnxruntime-web: on the graphics card when it can, else on the processor. Two ONNX files, 104.7 MB, downloaded once per visit.</dd></div>
-            </dl>
-          </section>
+      <!-- One row per experiment: the question, what was decided, and the number that decided it (experiments.ts). -->
+      <section class="section" aria-labelledby="decisions-title">
+        <h2 id="decisions-title">Key decisions</h2>
+        <p class="section-note" id="decisions-intro"></p>
+        <div class="table-scroll" id="decisions"></div>
+      </section>
 
-          <section class="card-part card-data">
-            <h3>Training data</h3>
-            <p>Caltech-UCSD Birds 200 (CUB-200, 2010 version): 6,033 photos of 200 species. 4,829 are training photos, about 24 per species; 1,204 are test photos.</p>
-            <p>During experiments 1 to 7, 800 training photos were held back as validation photos to choose the settings. The final model then trained on all 4,829. The test photos never chose anything.</p>
-          </section>
+      <!-- Every run's learning curve: a large chart for the selected run, then small charts for all (experiments.ts). -->
+      <section class="section" aria-labelledby="training-title">
+        <h2 id="training-title">Training</h2>
+        <p class="section-note" id="training-intro"></p>
+        <article class="explorer" id="explorer" aria-live="polite"></article>
+        <div class="run-grid" id="run-grid"></div>
+      </section>
 
-          <section class="card-part card-metrics">
-            <h3>Test metrics</h3>
-            <table class="metrics-table">
+      <!-- Test scores of the final model and the runner-up, then what the model cannot do. -->
+      <section class="section results" aria-labelledby="results-title">
+        <h2 id="results-title">Results</h2>
+        <div class="results-grid">
+          <div>
+            <table class="table">
               <thead>
                 <tr>
                   <th scope="col">Model</th>
-                  <th scope="col" class="num">Top-1</th>
+                  <th scope="col" class="num">Test Top-1</th>
                   <th scope="col" class="num">Average per-class</th>
                 </tr>
               </thead>
               <tbody id="metrics"></tbody>
             </table>
-            <p class="metrics-note" id="metrics-note"></p>
-          </section>
-
-          <section class="card-part card-use">
-            <h3>Intended use</h3>
-            <p>A coursework demonstration: name the species of one bird in a photo, out of the 200 species in CUB-200.</p>
-            <p>It is not a field guide. Check a real sighting against a trusted guide.</p>
-          </section>
-
-          <section class="card-part card-limits">
+            <p class="section-note" id="metrics-note"></p>
+          </div>
+          <div>
             <h3>Limitations</h3>
             <ul class="limits">
               <li>It knows only 200 species. Any other bird, or a photo with no bird, still gets one of the 200 names.</li>
-              <li>It learned from about 24 photos per species, so rare poses and lighting can fool it.</li>
-              <li>It looks only at the middle square of the photo. A bird near the edge may be cut off.</li>
+              <li>It learned from about 24 photos per species, and it sees only the middle square of the photo.</li>
               <li id="limit-confidence"></li>
-              <li>The test photos come from the same collection as the training photos. Photos from other sources may score lower (an estimate, not measured).</li>
             </ul>
-          </section>
+          </div>
         </div>
-      </section>
-
-      <!-- The experiments: one table row per experiment; the selected one opens below (experiments.ts). -->
-      <section class="experiments" aria-labelledby="experiments-title">
-        <h2 class="section-title" id="experiments-title">The experiments</h2>
-        <p class="experiments-intro" id="experiments-intro"></p>
-        <div id="experiments"></div>
       </section>
     </main>
 
     <footer class="footer">
-      <p>Victor Chan · 104384986 · COS30082 Assignment 1, Bird Species Classification</p>
-      <p>Dataset: Caltech-UCSD Birds 200 (CUB-200). Networks: PyTorch, exported to ONNX.</p>
+      <div class="wrap">
+        <p>Victor Chan · 104384986 · COS30082 Assignment 1</p>
+        <p>
+          Data: Caltech-UCSD Birds 200 (CUB-200). Trained in PyTorch, run with onnxruntime-web.
+          <a href="https://github.com/VictorChan231204/Bird_Species_Classification_Machine_Learning">Source code</a>
+        </p>
+      </div>
     </footer>
 
     <div class="drop-veil" id="drop-veil" hidden><p>Drop the photo to identify it</p></div>

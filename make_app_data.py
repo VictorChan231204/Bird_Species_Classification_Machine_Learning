@@ -5,16 +5,16 @@ Usage, from the project root (after export_onnx.py):
 
 Writes:
     app/src/data/species.json    - the 200 species names, index = species number (tracked)
-    app/src/data/results.json    - scores, settings and learning curves of every run in results/ (tracked)
+    app/src/data/results.json    - scores, settings and learning curves of every trained and SVM run (tracked)
+    app/src/data/models.json     - every run the app can classify with: file, size and kind (tracked)
     app/src/data/examples.json   - the example photos: file name and true species number (tracked)
     app/src/data/confidence.json - how often the final model is right when it is unsure and when it is sure (tracked)
-    app/public/examples/*.jpg    - 8 random test photos, copied unchanged (tracked)
-    app/public/models/*.onnx     - copies of checkpoints/8-final-*.onnx (gitignored, 104.7 MB)
+    app/public/examples/*.jpg    - 8 hand-picked test photos, copied unchanged (tracked)
+    app/public/models/*.onnx     - copies of every checkpoints/<run>.onnx from export_onnx.py --all (gitignored, 1.4 GB)
 The app reads every number it shows from results.json, so each score on the site traces back to a file in results/.
 """
 
 import json
-import random
 import shutil
 from pathlib import Path
 
@@ -25,19 +25,30 @@ from src.train import CHECKPOINT_DIR, RESULTS_DIR
 
 ROOT = Path(__file__).resolve().parent
 APP_DIR = ROOT / "app"
-EXAMPLE_COUNT = 8  # small enough to hang in one row along the bottom of the first screen
-EXAMPLE_SEED = 42  # examples are drawn at random, not hand-picked, so they show the model as it is
-MODELS = ("8-final-resnet50", "8-final-convnext")  # the two members of 8-final-ensemble
-UNSURE_BELOW = 0.3  # the app calls an answer "unsure" when its top probability is under this
+# The example photos, as line numbers of test.txt (0-based), in the order the app shows them. Hand-picked with the
+# final model's saved test probabilities: six clear photos it gets right with over 94% probability, from six
+# different bird groups, then two hard cases on purpose, so the examples do not hide its weak spots.
+EXAMPLES = (
+    89,  # Painted Bunting, right, 95.7%
+    1125,  # Pileated Woodpecker, right, 97.7%
+    518,  # Hooded Merganser, right, 98.3%
+    277,  # European Goldfinch, right, 94.6%
+    399,  # Rufous Hummingbird, right, 95.8%
+    1076,  # Wilson Warbler, right, 99.1%
+    55,  # hard: Red-winged Blackbird against the light, right but only 15.9%
+    160,  # hard: American Crow, guessed Fish Crow (two all-black crows that differ mainly by voice)
+)
+FINAL = "8-final-convnext"  # the final model: ConvNeXt-Tiny retrained on all 4,829 training photos
+UNSURE_BELOW = 0.3  # the app calls an answer "low confidence" when its top probability is under this
 
 
 def confidence_check() -> dict:
-    """How often 8-final-ensemble's first guess is right on the test photos, below and above UNSURE_BELOW.
-    Label smoothing (0.1) trains the networks never to be fully sure, so their probabilities run low; this tells the
+    """How often the final model's first guess is right on the test photos, below and above UNSURE_BELOW.
+    Label smoothing (0.1) trains the network never to be fully sure, so its probabilities run low; this tells the
     visitor what a low number actually means. Reads the saved test probabilities (checkpoints/<name>-probs.npz)."""
-    tables = [np.load(CHECKPOINT_DIR / f"{name}-probs.npz") for name in MODELS]
-    probs = np.mean([t["test"] for t in tables], axis=0)  # the ensemble: equal-weight average, as in src/ensemble.py
-    right = probs.argmax(axis=1) == tables[0]["test_labels"]
+    table = np.load(CHECKPOINT_DIR / f"{FINAL}-probs.npz")
+    probs = table["test"]  # (1204 photos, 200 species)
+    right = probs.argmax(axis=1) == table["test_labels"]
     unsure = probs.max(axis=1) < UNSURE_BELOW
     return {
         "threshold": UNSURE_BELOW,
@@ -106,9 +117,11 @@ def all_scores() -> dict[str, dict]:
     members, flip: the runs a combination averages, and whether it adds mirror images; None for a trained run.
     curve: training and validation Top-1 per epoch (val None without honest validation photos); None when
            nothing trained epoch by epoch (combinations, SVMs).
-    The ONNX check file has a different layout and is skipped."""
+    The ONNX check file has a different layout and is skipped. So are the averaging runs (experiment 7 and
+    8-final-ensemble), which the app does not show, and the pipeline checks (check, check-svm)."""
     raw = {path.stem: json.loads(path.read_text()) for path in sorted(RESULTS_DIR.glob("*.json"))}
-    raw = {name: result for name, result in raw.items() if "test" in result}  # drops 8-final-ensemble-onnx.json
+    raw = {name: result for name, result in raw.items()
+           if "test" in result and "members" not in result["config"] and not name.startswith("check")}
 
     def trained_on_val(name: str) -> bool:
         config = raw[name]["config"]
@@ -135,17 +148,41 @@ def all_scores() -> dict[str, dict]:
 
 
 def write_examples() -> list[dict]:
-    """Draw EXAMPLE_COUNT random test photos, copy them byte for byte, and return their labels.
+    """Copy the EXAMPLES test photos byte for byte, and return their labels.
     Copied, not re-saved: a resized JPEG copy moved ResNet-50's confidence on photo 0228 from 16.6% to 33.9%.
-    The browser resizes the original instead, the same as it does for a visitor's own photo."""
-    samples = random.Random(EXAMPLE_SEED).sample(read_labels(DATA_DIR / "test.txt"), EXAMPLE_COUNT)
+    The browser resizes the original instead, the same as it does for a visitor's own photo.
+    Photos from an earlier pick are deleted first, so the folder holds exactly the photos the app lists."""
+    test = read_labels(DATA_DIR / "test.txt")
+    samples = [test[line] for line in EXAMPLES]
     out_dir = APP_DIR / "public" / "examples"
     out_dir.mkdir(parents=True, exist_ok=True)
+    for old in out_dir.glob("*.jpg"):
+        old.unlink()
     examples = []
     for file_name, label in samples:
         shutil.copyfile(DATA_DIR / "Test" / file_name, out_dir / file_name)
         examples.append({"file": file_name, "label": label})
     return examples
+
+
+def write_models() -> dict[str, dict]:
+    """Copy every exported run (checkpoints/<run>.onnx, from export_onnx.py --all) into the app, and describe each.
+    kind: "cnn" outputs 200 probabilities; "svm" outputs 200 SVM scores, which are not probabilities.
+    bytes: the file size, for the download progress bar."""
+    model_dir = APP_DIR / "public" / "models"
+    model_dir.mkdir(parents=True, exist_ok=True)
+    for old in model_dir.glob("*.onnx"):
+        old.unlink()  # a run dropped since the last copy must not linger on the Space
+    models = {}
+    for path in sorted(CHECKPOINT_DIR.glob("*.onnx")):
+        shutil.copyfile(path, model_dir / path.name)
+        models[path.stem] = {
+            "file": f"models/{path.name}",
+            "bytes": path.stat().st_size,
+            "kind": "svm" if "svm" in path.stem else "cnn",
+        }
+    assert FINAL in models, f"{FINAL}.onnx is missing: run export_onnx.py --all first"
+    return models
 
 
 def main() -> None:
@@ -156,11 +193,8 @@ def main() -> None:
     (data_dir / "examples.json").write_text(json.dumps(write_examples(), indent=1) + "\n")
     (data_dir / "confidence.json").write_text(json.dumps(confidence_check(), indent=1) + "\n")
 
-    model_dir = APP_DIR / "public" / "models"
-    model_dir.mkdir(parents=True, exist_ok=True)
-    for name in MODELS:
-        shutil.copyfile(CHECKPOINT_DIR / f"{name}.onnx", model_dir / f"{name}.onnx")
-    print(f"wrote {data_dir} and {model_dir}")
+    (data_dir / "models.json").write_text(json.dumps(write_models(), indent=1) + "\n")
+    print(f"wrote {data_dir} and {APP_DIR / 'public' / 'models'}")
 
 
 if __name__ == "__main__":

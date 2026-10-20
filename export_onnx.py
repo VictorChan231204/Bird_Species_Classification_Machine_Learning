@@ -3,6 +3,7 @@
 Usage, from the project root:
     .venv/Scripts/python export_onnx.py           # export both networks, then score the test photos through ONNX
     .venv/Scripts/python export_onnx.py --score   # skip the export; only score the files already in checkpoints/
+    .venv/Scripts/python export_onnx.py --all     # export every run the app offers, each checked on 100 test photos
 
 ONNX is a file format that any program can run, not only PyTorch. The web app runs these files in the visitor's
 browser with onnxruntime-web, so no server is needed. This script writes, per network:
@@ -21,6 +22,8 @@ whose guess changed. Writes results/8-final-ensemble-onnx.json.
 import argparse
 import time
 
+import joblib
+
 import numpy as np
 import onnx
 import onnxruntime as ort
@@ -32,7 +35,8 @@ from torchvision import transforms
 
 from src.config import COMBINATIONS, EXPERIMENTS
 from src.data import DATA_DIR, IMAGENET_MEAN, IMAGENET_STD, RESIZE_RATIO, Sample, read_labels
-from src.models import build_model
+from src.models import build_model, set_head
+from src.svm import FEATURES_DIR
 from src.train import CHECKPOINT_DIR, RESULTS_DIR, summarise, tidy_json
 
 ENSEMBLE = COMBINATIONS["8-final-ensemble"]  # the final model: ResNet-50 + ConvNeXt-Tiny, equal weights, no flip
@@ -55,6 +59,59 @@ class BrowserModel(nn.Module):
     def forward(self, pixels: torch.Tensor) -> torch.Tensor:
         standardised = (pixels - self.mean) / self.std  # the same Normalize step as the test transform (W5 s80)
         return self.network(standardised).softmax(dim=1)  # scores -> probabilities that sum to 1 (W3 s43)
+
+
+class SvmBrowserModel(nn.Module):
+    """A frozen-features + SVM run (1-frozen-svm-*) as one network, so the browser runs it like any other file.
+
+    The steps match src/svm.py: the frozen ImageNet ResNet-50 turns the photo into 2,048 features, StandardScaler
+    puts each feature on the same ruler, and 200 one-vs-rest SVMs each give a score. The output is the 200 SVM scores
+    (signed distance from each species' fence), not probabilities: an SVM has no softmax.
+
+    Linear kernel: each SVM is one weight per feature plus a bias, so all 200 fold into one matrix multiply.
+    RBF kernel: each SVM sums its support vectors' similarity to the photo, exp(-gamma * squared distance), times
+    their learned weights (dual coefficients). The 200 SVMs share one table of support vectors, the union of theirs;
+    a support vector one SVM does not use gets weight 0 in that SVM's column.
+    """
+
+    def __init__(self, trunk: nn.Module, svm, train_features: np.ndarray):
+        super().__init__()
+        self.trunk = trunk  # frozen ResNet-50 with its last layer removed: photo -> 2,048 features
+        scaler, one_vs_rest = svm.steps[0][1], svm.steps[1][1]
+        self.register_buffer("mean", torch.tensor(IMAGENET_MEAN).view(1, 3, 1, 1))
+        self.register_buffer("std", torch.tensor(IMAGENET_STD).view(1, 3, 1, 1))
+        self.register_buffer("feature_mean", torch.tensor(scaler.mean_, dtype=torch.float32))
+        self.register_buffer("feature_scale", torch.tensor(scaler.scale_, dtype=torch.float32))
+        machines = one_vs_rest.estimators_  # 200 binary SVCs, one per species, in species order
+        self.kernel = machines[0].kernel
+        bias = np.array([m.intercept_[0] for m in machines], dtype=np.float32)
+        self.register_buffer("bias", torch.tensor(bias))
+        if self.kernel == "linear":
+            # (2048, 200): column s holds species s's weight for every feature
+            weights = np.stack([m.coef_[0] for m in machines], axis=1).astype(np.float32)
+            self.register_buffer("weights", torch.tensor(weights))
+        else:
+            used = np.unique(np.concatenate([m.support_ for m in machines]))  # training photos any SVM relies on
+            column = {photo: row for row, photo in enumerate(used)}
+            dual = np.zeros((len(used), len(machines)), dtype=np.float32)  # (support vectors, 200 species)
+            for species, m in enumerate(machines):
+                for photo, coef in zip(m.support_, m.dual_coef_[0]):
+                    dual[column[photo], species] = coef
+            # The support vectors in standardised units, as the SVMs saw them.
+            vectors = scaler.transform(train_features[used]).astype(np.float32)
+            self.register_buffer("vectors", torch.tensor(vectors))
+            self.register_buffer("vector_norms", torch.tensor((vectors**2).sum(axis=1)))
+            self.register_buffer("dual", torch.tensor(dual))
+            self.gamma = float(machines[0]._gamma)  # gamma="scale" resolved at fit time: 1 / (2,048 * feature variance)
+
+    def forward(self, pixels: torch.Tensor) -> torch.Tensor:
+        features = self.trunk((pixels - self.mean) / self.std)  # (1, 2048)
+        x = (features - self.feature_mean) / self.feature_scale  # StandardScaler
+        if self.kernel == "linear":
+            return x @ self.weights + self.bias  # (1, 200) SVM scores
+        # Squared distance to every support vector, written as |x|^2 - 2 x.v + |v|^2 so it is one matrix multiply.
+        distance = (x**2).sum(dim=1, keepdim=True) - 2 * x @ self.vectors.T + self.vector_norms
+        return torch.exp(-self.gamma * distance) @ self.dual + self.bias  # (1, 200) SVM scores
 
 
 def weights_to_float16(model: onnx.ModelProto) -> onnx.ModelProto:
@@ -84,22 +141,63 @@ def weights_to_float16(model: onnx.ModelProto) -> onnx.ModelProto:
 
 
 def export(name: str) -> None:
-    """Load the trained weights of one run, wrap them in BrowserModel, and write checkpoints/<name>.onnx."""
+    """Load the trained weights of one run, wrap them for the browser, and write checkpoints/<name>.onnx.
+    A trained run becomes BrowserModel (pixels -> probabilities); an SVM run becomes SvmBrowserModel
+    (pixels -> SVM scores)."""
     cfg = EXPERIMENTS[name]
-    network = build_model(cfg)  # the same network shape as in training, including the dropout around the new layer
-    network.load_state_dict(torch.load(CHECKPOINT_DIR / f"{name}.pt", map_location="cpu"))
-    model = BrowserModel(network).eval()  # eval: dropout off, batch normalisation uses its saved averages
+    if cfg.svm_kernel:
+        trunk = build_model(cfg)  # the frozen ImageNet ResNet-50, exactly as src/svm.py builds it
+        set_head(trunk, nn.Identity())  # remove the decider: the network now outputs its 2,048 features
+        features = np.load(FEATURES_DIR / f"{cfg.arch}-{cfg.image_size}-seed{cfg.seed}.npz")["x_train"]
+        model = SvmBrowserModel(trunk, joblib.load(CHECKPOINT_DIR / f"{name}.joblib"), features).eval()
+        output = "scores"
+    else:
+        network = build_model(cfg)  # the same network shape as in training, including the dropout around the new layer
+        network.load_state_dict(torch.load(CHECKPOINT_DIR / f"{name}.pt", map_location="cpu"))
+        model = BrowserModel(network).eval()  # eval: dropout off, batch normalisation uses its saved averages
+        output = "probs"
 
     # A random photo: only its shape matters. The file accepts exactly one photo per call, which is all the app needs
     # (a variable batch size failed to export for ConvNeXt-Tiny: "Invalid ranges [2:1]").
     example = torch.rand(1, 3, cfg.image_size, cfg.image_size)
-    program = torch.onnx.export(model, (example,), input_names=["pixels"], output_names=["probs"], dynamo=True,
+    program = torch.onnx.export(model, (example,), input_names=["pixels"], output_names=[output], dynamo=True,
                                 verbose=False)  # its progress lines hold emoji that crash a Windows console pipe
     proto = weights_to_float16(program.model_proto)
     onnx.checker.check_model(proto)  # fails loudly if the file breaks a rule of the ONNX format
     path = CHECKPOINT_DIR / f"{name}.onnx"
     onnx.save(proto, path)
     print(f"{name}: wrote {path} ({path.stat().st_size / 1e6:.1f} MB)")
+
+
+def app_runs() -> list[str]:
+    """Every run the web app can classify with: each trained run and SVM run with saved weights, except the
+    pipeline checks. The combinations (experiment 7 and 8-final-ensemble) need no file: the app averages members."""
+    return [name for name, cfg in EXPERIMENTS.items()
+            if not name.startswith("check")
+            and (CHECKPOINT_DIR / f"{name}.{'joblib' if cfg.svm_kernel else 'pt'}").exists()]
+
+
+def quick_check(name: str, photos: int = 100) -> None:
+    """Score the first `photos` test photos through the ONNX file and count how many guesses differ from Python's.
+    Python's guesses: the saved probabilities (checkpoints/<name>-probs.npz) for a trained run, or the saved SVM on
+    the cached features for an SVM run. A few changed guesses are expected from float16 weights; many mean a bug."""
+    cfg = EXPERIMENTS[name]
+    session = ort.InferenceSession(CHECKPOINT_DIR / f"{name}.onnx", providers=["CPUExecutionProvider"])
+    samples, to_pixels = test_pixels(cfg.image_size)
+    samples = samples[:photos]
+    onnx_guess = np.array([
+        session.run(None, {"pixels": to_pixels(Image.open(DATA_DIR / "Test" / f).convert("RGB")).unsqueeze(0).numpy()})[0][0].argmax()
+        for f, _ in samples
+    ])
+    if cfg.svm_kernel:
+        features = np.load(FEATURES_DIR / f"{cfg.arch}-{cfg.image_size}-seed{cfg.seed}.npz")["x_test"][:photos]
+        python_guess = joblib.load(CHECKPOINT_DIR / f"{name}.joblib").predict(features)
+    else:
+        python_guess = np.load(CHECKPOINT_DIR / f"{name}-probs.npz")["test"][:photos].argmax(axis=1)
+    changed = int((onnx_guess != python_guess).sum())
+    print(f"{name}: {changed} of {photos} guesses differ from Python", flush=True)
+    if changed > photos * 0.05:  # more than 5 in 100: not rounding, a mistake in the export
+        raise SystemExit(f"{name}: the ONNX file disagrees with Python on {changed} of {photos} photos")
 
 
 def test_pixels(image_size: int) -> tuple[list[Sample], transforms.Compose]:
@@ -127,9 +225,18 @@ def onnx_probs(name: str) -> np.ndarray:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Export the final networks to ONNX and check their test score.")
-    parser.add_argument("--score", action="store_true", help="skip the export; score the existing .onnx files")
-    if not parser.parse_args().score:
+    parser = argparse.ArgumentParser(description="Export networks to ONNX and check them against Python's scores.")
+    parser.add_argument("--score", action="store_true", help="skip the export; score the existing final files")
+    parser.add_argument("--all", action="store_true",
+                        help="export every run the app offers (skips files already there), with a 100-photo check each")
+    args = parser.parse_args()
+    if args.all:
+        for name in app_runs():
+            if not (CHECKPOINT_DIR / f"{name}.onnx").exists():
+                export(name)
+            quick_check(name)
+        return
+    if not args.score:
         for name in ENSEMBLE.members:
             export(name)
 

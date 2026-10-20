@@ -2682,76 +2682,6 @@
    ]
   }
  },
- "7-ensemble-flip-seed43": {
-  "val": 0.8975,
-  "test": 0.8929,
-  "perClass": 0.8892,
-  "settings": null,
-  "members": [
-   "5-combined-seed43",
-   "6-convnext-lr3e-03-seed43"
-  ],
-  "flip": true,
-  "curve": null
- },
- "7-ensemble-flip": {
-  "val": 0.8812,
-  "test": 0.8787,
-  "perClass": 0.8746,
-  "settings": null,
-  "members": [
-   "5-combined",
-   "6-convnext-lr3e-03"
-  ],
-  "flip": true,
-  "curve": null
- },
- "7-ensemble-seed43": {
-  "val": 0.9,
-  "test": 0.8895,
-  "perClass": 0.8857,
-  "settings": null,
-  "members": [
-   "5-combined-seed43",
-   "6-convnext-lr3e-03-seed43"
-  ],
-  "flip": false,
-  "curve": null
- },
- "7-ensemble": {
-  "val": 0.8812,
-  "test": 0.8812,
-  "perClass": 0.8769,
-  "settings": null,
-  "members": [
-   "5-combined",
-   "6-convnext-lr3e-03"
-  ],
-  "flip": false,
-  "curve": null
- },
- "7-flip-seed43": {
-  "val": 0.8812,
-  "test": 0.8538,
-  "perClass": 0.8505,
-  "settings": null,
-  "members": [
-   "5-combined-seed43"
-  ],
-  "flip": true,
-  "curve": null
- },
- "7-flip": {
-  "val": 0.8612,
-  "test": 0.8497,
-  "perClass": 0.8445,
-  "settings": null,
-  "members": [
-   "5-combined"
-  ],
-  "flip": true,
-  "curve": null
- },
  "8-final-convnext": {
   "val": null,
   "test": 0.892,
@@ -2818,18 +2748,6 @@
    "val": null
   }
  },
- "8-final-ensemble": {
-  "val": null,
-  "test": 0.897,
-  "perClass": 0.8951,
-  "settings": null,
-  "members": [
-   "8-final-resnet50",
-   "8-final-convnext"
-  ],
-  "flip": false,
-  "curve": null
- },
  "8-final-resnet50": {
   "val": null,
   "test": 0.8754,
@@ -2894,79 +2812,6 @@
     0.9909
    ],
    "val": null
-  }
- },
- "check-svm": {
-  "val": 0.6038,
-  "test": 0.6188,
-  "perClass": 0.6106,
-  "settings": {
-   "arch": "resnet50",
-   "pretrained": true,
-   "frozen": true,
-   "imageSize": 224,
-   "batchSize": 32,
-   "optimizer": "adam",
-   "momentum": 0.9,
-   "lrNew": 0.001,
-   "lrPretrained": 0.001,
-   "schedule": "constant",
-   "warmupEpochs": 0,
-   "epochs": 2,
-   "augment": false,
-   "augmentStrength": "basic",
-   "dropout": 0.0,
-   "weightDecay": 0.0,
-   "labelSmoothing": 0.0,
-   "trainOnVal": false,
-   "svmKernel": "linear",
-   "epochKept": null,
-   "minutes": 2.3,
-   "peakGpuGb": null
-  },
-  "members": null,
-  "flip": null,
-  "curve": null
- },
- "check": {
-  "val": 0.4788,
-  "test": 0.5058,
-  "perClass": 0.4844,
-  "settings": {
-   "arch": "resnet50",
-   "pretrained": true,
-   "frozen": true,
-   "imageSize": 224,
-   "batchSize": 32,
-   "optimizer": "adam",
-   "momentum": 0.9,
-   "lrNew": 0.001,
-   "lrPretrained": 0.001,
-   "schedule": "constant",
-   "warmupEpochs": 0,
-   "epochs": 2,
-   "augment": false,
-   "augmentStrength": "basic",
-   "dropout": 0.0,
-   "weightDecay": 0.0,
-   "labelSmoothing": 0.0,
-   "trainOnVal": false,
-   "svmKernel": null,
-   "epochKept": 2,
-   "minutes": 1.2,
-   "peakGpuGb": 0.31
-  },
-  "members": null,
-  "flip": null,
-  "curve": {
-   "train": [
-    0.169,
-    0.6724
-   ],
-   "val": [
-    0.3475,
-    0.4788
-   ]
   }
  }
 }

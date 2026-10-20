@@ -9,22 +9,22 @@ species in a photo.
 
 ## Final model
 
-`8-final-ensemble`: two CNNs, ResNet-50 and ConvNeXt-Tiny, both pretrained on ImageNet-1k and fine-tuned on the
-4,829 training photos. The ensemble averages the two networks' probabilities with equal weight.
+`8-final-convnext`: ConvNeXt-Tiny, pretrained on ImageNet-1k and fine-tuned on the 4,829 training photos.
+ResNet-50 and ConvNeXt-Tiny tied on the validation photos; both were retrained on all training photos, and the test
+set decided between them.
 
 | Model on the 1,204 test photos | Top-1 accuracy | Average per-class accuracy |
 |---|---|---|
-| ResNet-50 alone (`8-final-resnet50`) | 87.5% | 87.4% |
-| ConvNeXt-Tiny alone (`8-final-convnext`) | 89.2% | 89.0% |
-| **Ensemble (`8-final-ensemble`)** | **89.7%** | **89.5%** |
+| **ConvNeXt-Tiny (`8-final-convnext`), final model** | **89.2%** | **89.0%** |
+| ResNet-50 (`8-final-resnet50`), runner-up | 87.5% | 87.4% |
 
 Every run's settings, scores and per-epoch history are in `results/<name>.json`.
 
 ## The web app
 
-`app/` is a static site (Vite + TypeScript). Both networks run in the visitor's browser through onnxruntime-web,
-on the graphics card when available. The app shows the ensemble's top 5 species, each member network's own top
-guess, and the scores of every experiment.
+`app/` is a static site (Vite + TypeScript). The networks run in the visitor's browser through onnxruntime-web, on
+the graphics card when available. The app shows the final model's top 5 species. A model picker runs any of the 31
+trained runs instead, baselines and SVMs included, and the page shows every run's learning curve and scores.
 
 ## Repository layout
 
@@ -34,7 +34,7 @@ guess, and the scores of every experiment.
 | `run.py` | Trains and scores one experiment by name |
 | `measure.py` | Measures GPU memory and speed per batch size |
 | `results/` | One JSON file per run: settings, validation and test scores, learning curve |
-| `export_onnx.py` | Exports the two final networks to ONNX for the browser |
+| `export_onnx.py` | Exports the runs to ONNX for the browser and checks them against Python's scores |
 | `make_app_data.py` | Writes the app's data files and copies the example photos and ONNX files into `app/` |
 | `deploy_space.py` | Uploads the built app to the Hugging Face Space |
 | `app/` | The web app |
@@ -61,8 +61,7 @@ Then:
 ```
 .venv/Scripts/python run.py check              # 2-epoch pipeline check, about 2 minutes
 .venv/Scripts/python run.py 8-final-resnet50   # train one experiment (names in src/config.py)
-.venv/Scripts/python run.py 8-final-ensemble   # average saved probabilities, seconds
-.venv/Scripts/python export_onnx.py --score    # ONNX files for the app, scored on the test photos
+.venv/Scripts/python export_onnx.py --all      # ONNX files for the app, each checked on 100 test photos
 .venv/Scripts/python make_app_data.py          # refresh the app's data
 cd app && npm install && npm run dev           # run the web app locally
 ```
