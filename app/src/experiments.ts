@@ -376,6 +376,25 @@ const HOW_TO_READ = `
     <li>The dot marks the kept epoch: the weights with the best validation score are the ones scored on test.</li>
   </ul>`;
 
+/**
+ * Why a final run has no validation score, for the marker: the validation photos had done their job (choosing the
+ * settings), so they joined training, and the run keeps its last epoch instead of the best validation epoch.
+ */
+function whyNoValidation(run: RunName, source: RunName): string {
+  const held = RUNS[source];
+  return `
+    <aside class="why-box">
+      <h4>Why no validation score?</h4>
+      <p>Validation photos are for choosing settings. By this run, every setting had already been chosen with them,
+        in <code>${source}</code> and the experiments before it (validation ${pct(held.val)}).</p>
+      <p>So the 800 validation photos joined training: 4,829 photos instead of 4,029, about 4 more per species. With
+        only about 24 photos per species, every extra photo helps.</p>
+      <p>No photos were left to validate on, so this run keeps its last epoch, ${RUNS[run].settings.epochKept}, instead
+        of the best validation epoch. That is safe: in the four earlier runs of the two final recipes (two seeds each),
+        the last epoch scored at most 0.9 validation points below the best one. The test photos stayed unseen and scored the run once.</p>
+    </aside>`;
+}
+
 /** The large chart, scores and settings of one run, inside `root`. */
 export function showRun(root: HTMLElement, run: RunName, onTry: (run: RunName) => void): void {
   const r = RUNS[run];
@@ -383,12 +402,12 @@ export function showRun(root: HTMLElement, run: RunName, onTry: (run: RunName) =
   const chart = chartLines(run)
     ? chartSvg(run, true) +
       (source
-        ? `<p class="chart-note"><span class="key key-final"></span>Dashed: this run, trained on all 4,829 photos. Its validation photos became training photos, so it has no validation line; the solid lines come from <code>${source}</code>, the same recipe with 800 photos held back.</p>`
+        ? `<p class="chart-note"><span class="key key-final"></span>Dashed line: this run's training accuracy. The solid lines come from <code>${source}</code>, the same recipe trained with 800 photos held back, so its validation line shows how this recipe handles unseen photos.</p>`
         : "") +
       HOW_TO_READ
     : `<p class="chart-empty">No chart: an SVM is solved in one go, not trained epoch by epoch.</p>`;
   const scores: [string, string][] = [
-    ["Validation Top-1", r.val === null ? "– (trained on those photos)" : pct(r.val)],
+    ["Validation Top-1", r.val === null ? "Not measured (see below)" : pct(r.val)],
     ["Test Top-1", pct(r.test)],
     ["Test average per-class", pct(r.perClass)],
   ];
@@ -404,6 +423,7 @@ export function showRun(root: HTMLElement, run: RunName, onTry: (run: RunName) =
       <div>${chart}</div>
       <div>
         <dl class="facts">${scores.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>
+        ${source ? whyNoValidation(run, source) : ""}
         <dl class="facts facts-settings">${settingsRows(run).map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>
       </div>
     </div>`;

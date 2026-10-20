@@ -692,6 +692,23 @@ a {
   font-size: var(--text-sm);
 }
 
+/* The "Why no validation score?" box beside a final run's scores. */
+.why-box {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  font-size: var(--text-sm);
+}
+
+.why-box h4 {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
 .how-to-read {
   display: grid;
   gap: var(--space-1);
