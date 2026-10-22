@@ -25,11 +25,17 @@ experiments and the reason for each setting are described in `src/config.py`.
 
 This scores the published final model on the test photos. It needs no training and no graphics card.
 
-**1. Get the code and a Python 3.12 environment.**
+**1. Get the code and a Python 3.12 environment.** Either unzip the submitted code zip and open a terminal in the
+unzipped `Bird_Species_Classification_Machine_Learning` folder, or clone the repository:
 
 ```
 git clone https://github.com/VictorChan231204/Bird_Species_Classification_Machine_Learning.git
 cd Bird_Species_Classification_Machine_Learning
+```
+
+Then create the environment inside that folder:
+
+```
 python -m venv .venv
 ```
 
@@ -98,7 +104,7 @@ python -m pip install -r requirements.txt
 Then:
 
 ```
-python run.py check              # 2-epoch pipeline check, about 1 minute
+python run.py check              # 2-epoch pipeline check, about 2 minutes
 python run.py 7-final-convnext   # the final model, about 50 minutes
 python run.py --help             # every run name; their settings are in src/config.py
 ```
@@ -130,6 +136,17 @@ npm run dev
 
 Then open the address it prints (usually http://localhost:5173). The networks run in the browser with
 onnxruntime-web, on the graphics card when the browser supports WebGPU, else on the processor.
+
+To build the deployable site instead (type-checks first, then writes static files to `app/dist/`):
+
+```
+cd app
+npm ci
+npm run build
+npm run preview
+```
+
+`npm run preview` serves the built site, usually at http://localhost:4173. The live Space runs this same build.
 
 ## Repository layout
 

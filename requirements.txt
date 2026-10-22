@@ -1,4 +1,4 @@
-# Install PyTorch first (see README.md, "Setup"):
+# Install PyTorch first (see README.md, "Quick start" step 2):
 #   NVIDIA GPU: python -m pip install torch==2.14.0 torchvision==0.29.0 --index-url https://download.pytorch.org/whl/cu130
 #   No GPU:     python -m pip install torch==2.14.0 torchvision==0.29.0
 # Then: python -m pip install -r requirements.txt
